@@ -19,6 +19,7 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Sparkline } from "@/components/dashboard/Sparkline";
+import { SensorReportSection } from "@/components/dashboard/SensorReportSection";
 import {
   buildLongSignalSeries,
   percentChange,
@@ -284,6 +285,14 @@ export default function ReportsPage() {
               body="A short walk after the session has been linked to steadier postural readings in your data."
             />
           </ul>
+        </section>
+
+        {/* Sensor data feedback */}
+        <section
+          className="animate-stagger-up"
+          style={{ animationDelay: "340ms" }}
+        >
+          <SensorReportSection />
         </section>
 
         {/* Feedback aggregation */}

@@ -267,17 +267,26 @@ function DigitSpanTask({
   const correctCount = useRef(0);
   const totalCount = useRef(0);
 
-  // Generate the current trial's sequence by sampling a sub-array.
-  // Length grows with each trial, capped at maxLength.
+  // Generate a fresh random sequence per trial. Wechsler-style: random
+  // digits 0-9 with no immediate same-digit repeats (so the user can't
+  // game it by spotting a doubled digit). useMemo keyed on `trial` so
+  // the sequence stays stable within a single trial even if the parent
+  // re-renders for unrelated reasons.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const sequence = useMemo(() => {
     const len = Math.min(maxLength, minLength + trial);
-    // Deterministic pick: use trial as a rotation offset over the pool.
     const out: number[] = [];
+    let last = -1;
     for (let i = 0; i < len; i += 1) {
-      out.push(digits[(i + trial * 3) % digits.length]);
+      let next: number;
+      do {
+        next = Math.floor(Math.random() * 10);
+      } while (next === last);
+      out.push(next);
+      last = next;
     }
     return out;
-  }, [trial, digits, minLength, maxLength]);
+  }, [trial, minLength, maxLength]);
 
   const expected = useMemo(
     () =>
