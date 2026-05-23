@@ -11,6 +11,7 @@ import { detectFaceFeatures } from "./face";
 import { detectPoseFeatures, resetPoseState } from "./pose";
 import { detectHandFeatures, resetHandState } from "./hand";
 import { AudioFeatureExtractor } from "./audio";
+import { SessionTranscriber } from "./transcribe";
 
 export interface TaskFeatures {
   taskId: string;
@@ -70,6 +71,8 @@ export class TaskExtractor {
   // Audio
   private audio = new AudioFeatureExtractor();
   private framesAnalysed = 0;
+  // Speech transcription (audio tasks only)
+  private transcriber = new SessionTranscriber();
 
   constructor(
     task: Task,
@@ -85,7 +88,14 @@ export class TaskExtractor {
     if (audioStream && this.needsAudio()) {
       this.audio.attach(audioStream);
       this.audio.resetSession();
+      this.transcriber.start();
     }
+  }
+
+  // Expose the transcript so the SessionRunner can stash it on the
+  // corresponding TaskResult when this task advances.
+  pullTranscript(): string | undefined {
+    return this.transcriber.stop();
   }
 
   private needsFace(): boolean {

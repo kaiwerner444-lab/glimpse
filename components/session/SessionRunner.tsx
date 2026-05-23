@@ -21,6 +21,7 @@ import { COMFORT_TUNING } from "@/lib/preferences/comfort";
 import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
 import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
+import { scoreTask } from "@/lib/session/scoring";
 import { TaskRecorder } from "@/lib/storage/recorder";
 import {
   startSession,
@@ -207,6 +208,9 @@ function SessionRunnerInner({
     async (skipped: boolean) => {
       if (!task) return;
       // Stop and persist the current task's extractor + recorder.
+      // Grab the speech transcript BEFORE stopping the extractor —
+      // pullTranscript stops the SpeechRecognition cleanly.
+      const transcript = extractorRef.current?.pullTranscript();
       const features = extractorRef.current?.stop();
       const blob = recorderRef.current
         ? await recorderRef.current.stop()
@@ -225,12 +229,19 @@ function SessionRunnerInner({
         }
       }
 
-      const next: TaskResult = {
+      const baseResult: TaskResult = {
         taskId: task.id,
         startedAt: startedAtRef.current,
         endedAt: new Date().toISOString(),
         skipped,
+        speechTranscript: transcript,
         ...interactionRef.current,
+      };
+      const scored = scoreTask({ task, result: baseResult, features });
+      const next: TaskResult = {
+        ...baseResult,
+        taskScore: scored.score,
+        taskScoreNote: scored.note,
       };
       const updated = [...results, next];
       setResults(updated);

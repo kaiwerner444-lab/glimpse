@@ -226,6 +226,12 @@ export default function Home() {
             body="Weekly trends and monthly summaries you can share with a clinician."
           />
           <QuickLink
+            href="/sessions"
+            icon={<FileText className="h-5 w-5" />}
+            title="Session history"
+            body="Read through your past answers, per-task scores, and what was captured."
+          />
+          <QuickLink
             href="/home#share"
             icon={<Users className="h-5 w-5" />}
             title="Family access"

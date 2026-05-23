@@ -95,4 +95,12 @@ export interface TaskResult {
   // tremor: higher = more shake).
   spiralMeanDeviation?: number;
   spiralTremorVariance?: number;
+  // Speech transcript (audio tasks only). Captured via Web Speech API
+  // browser-side; replaced by server-side Whisper in v2.
+  speechTranscript?: string;
+  // Derived 0-100 score for this task, computed from the captured
+  // features. The session detail page reads these to give the user a
+  // tangible read of how each task went.
+  taskScore?: number;
+  taskScoreNote?: string;
 }
