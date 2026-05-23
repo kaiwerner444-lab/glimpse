@@ -13,6 +13,7 @@ import {
 } from "@/lib/session/baseline";
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
+import { cn } from "@/lib/utils";
 
 type Stage = "intro" | "running" | "done";
 
@@ -24,13 +25,20 @@ export default function BaselineStep() {
   );
   const [results, setResults] = useState<TaskResult[]>([]);
   const [features, setFeatures] = useState<TaskFeatures[]>([]);
+  // Distinguishes "all tasks completed" from "user clicked End session
+  // partway through" so the dashboard can prompt them to finish.
+  const [fullyCompleted, setFullyCompleted] = useState<boolean>(false);
 
-  const finish = (completed: boolean) => {
+  const finish = (skipForNow: boolean) => {
     update({
       baseline: {
-        completedAt: completed ? new Date().toISOString() : undefined,
-        durationSeconds: completed ? BASELINE_DURATION_SECONDS : undefined,
-        featuresCaptured: completed,
+        // completedAt is set the moment the user leaves the session — we
+        // record that they passed through this step. featuresCaptured
+        // tells the dashboard whether to surface the "complete your
+        // assessment" banner.
+        completedAt: new Date().toISOString(),
+        durationSeconds: fullyCompleted ? BASELINE_DURATION_SECONDS : undefined,
+        featuresCaptured: fullyCompleted && !skipForNow,
       },
       completedAt: new Date().toISOString(),
     });
@@ -50,9 +58,13 @@ export default function BaselineStep() {
           onComplete={(r, f) => {
             setResults(r);
             setFeatures(f);
+            setFullyCompleted(true);
             setStage("done");
           }}
-          onSkipAll={() => setStage("done")}
+          onSkipAll={() => {
+            setFullyCompleted(false);
+            setStage("done");
+          }}
         />
       </StepShell>
     );
@@ -63,26 +75,41 @@ export default function BaselineStep() {
       <StepShell
         step="baseline"
         eyebrow="Baseline session"
-        title="Baseline captured"
-        description="Your personal baseline is what every future session will be compared against. Your daily ritual starts tomorrow morning."
+        title={fullyCompleted ? "Baseline captured" : "Session ended early"}
+        description={
+          fullyCompleted
+            ? "Your personal baseline is what every future session will be compared against. Your daily ritual starts tomorrow morning."
+            : "No problem — you can finish the rest from the dashboard anytime. We'll prompt you there until it's complete."
+        }
         footer={
           <>
             <span className="text-sm text-ink-muted">
-              We&apos;ll send a gentle reminder around your usual morning time.
+              {fullyCompleted
+                ? "We'll send a gentle reminder around your usual morning time."
+                : "Finish later for personalised analysis."}
             </span>
-            <Button onClick={() => finish(true)}>Go to home</Button>
+            <Button onClick={() => finish(false)}>Go to home</Button>
           </>
         }
       >
         <div className="flex flex-col gap-5">
           <div className="glimpse-card p-6 flex items-center gap-4">
-            <CheckCircle2 className="h-10 w-10 text-success shrink-0" />
+            <CheckCircle2
+              className={cn(
+                "h-10 w-10 shrink-0",
+                fullyCompleted ? "text-success" : "text-warn",
+              )}
+            />
             <div>
               <h3 className="text-xl font-semibold text-ink">
-                All four modules captured
+                {fullyCompleted
+                  ? "All four modules captured"
+                  : `${results.length} of ${BASELINE_TASKS.length} tasks captured`}
               </h3>
               <p className="text-base text-ink-muted mt-1">
-                Speech, visual, movement and cognitive baselines saved.
+                {fullyCompleted
+                  ? "Speech, visual, movement and cognitive baselines saved."
+                  : "Partial data saved. Complete the rest to unlock the full personalised analysis."}
               </p>
             </div>
           </div>

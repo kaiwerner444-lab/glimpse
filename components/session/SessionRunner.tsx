@@ -313,48 +313,51 @@ function SessionRunnerInner({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+      <div className="sticky bottom-4 z-20 -mx-2 px-2 pt-2">
+        <div className="glimpse-card flex items-center justify-between gap-3 flex-wrap px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-surface/95">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setPaused((p) => !p)}
+              className="gap-2"
+              size="sm"
+            >
+              {paused ? (
+                <>
+                  <Play className="h-4 w-4" />
+                  Resume
+                </>
+              ) : (
+                <>
+                  <Pause className="h-4 w-4" />
+                  Pause
+                </>
+              )}
+            </Button>
+            {onSkipAll ? (
+              <Button variant="ghost" onClick={onSkipAll} size="sm">
+                End session
+              </Button>
+            ) : null}
+          </div>
           <Button
-            variant="secondary"
-            onClick={() => setPaused((p) => !p)}
+            variant="primary"
+            onClick={() => advance(elapsed < task.durationSeconds * 0.5)}
             className="gap-2"
           >
-            {paused ? (
+            {isLast ? (
               <>
-                <Play className="h-4 w-4" />
-                Resume
+                <CheckCircle2 className="h-4 w-4" />
+                Finish baseline
               </>
             ) : (
               <>
-                <Pause className="h-4 w-4" />
-                Pause
+                I&apos;m done
+                <ArrowRight className="h-4 w-4" />
               </>
             )}
           </Button>
-          {onSkipAll ? (
-            <Button variant="ghost" onClick={onSkipAll}>
-              End session
-            </Button>
-          ) : null}
         </div>
-        <Button
-          variant="primary"
-          onClick={() => advance(elapsed < task.durationSeconds * 0.5)}
-          className="gap-2"
-        >
-          {isLast ? (
-            <>
-              <CheckCircle2 className="h-4 w-4" />
-              Finish baseline
-            </>
-          ) : (
-            <>
-              I&apos;m done
-              <ArrowRight className="h-4 w-4" />
-            </>
-          )}
-        </Button>
       </div>
 
       {(needsAudio || needsVideo) && (
@@ -363,7 +366,10 @@ function SessionRunnerInner({
           audio={needsAudio}
           video={needsVideo}
           capturing={!paused && !!stream}
-          className="fixed bottom-6 right-6 w-44 h-32 sm:w-56 sm:h-40 z-30"
+          // Top-right of the viewport: stays visible during the task
+          // without covering the primary "I'm done" action at the
+          // bottom of the page.
+          className="fixed top-20 right-4 sm:right-6 w-36 h-24 sm:w-44 sm:h-32 z-30"
         />
       )}
     </div>

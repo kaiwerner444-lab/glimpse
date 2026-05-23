@@ -19,6 +19,7 @@ import { AccountMenu } from "@/components/dashboard/AccountMenu";
 import { HabitAndFreeze } from "@/components/dashboard/HabitAndFreeze";
 import { AiInsights } from "@/components/dashboard/AiInsights";
 import { SensorIntegrations } from "@/components/dashboard/SensorIntegrations";
+import { CompleteAssessmentBanner } from "@/components/dashboard/CompleteAssessmentBanner";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
@@ -83,6 +84,7 @@ export default function Home() {
       <Header />
 
       <main className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-8 sm:gap-10">
+        <CompleteAssessmentBanner />
         <Greeting name={name} />
 
         <div
