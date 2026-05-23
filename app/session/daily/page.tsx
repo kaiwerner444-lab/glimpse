@@ -9,12 +9,14 @@ import { Button } from "@/components/ui/Button";
 import { SessionRunner } from "@/components/session/SessionRunner";
 import { buildDailyTasks } from "@/lib/session/daily";
 import { recordSession, loadGamification, saveGamification, levelFromXp } from "@/lib/gamification/state";
+import { useRequireAuth } from "@/lib/auth/require-auth";
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
 
 type Stage = "running" | "done";
 
 export default function DailySession() {
+  const ready = useRequireAuth();
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("running");
   const [results, setResults] = useState<TaskResult[]>([]);
@@ -40,6 +42,10 @@ export default function DailySession() {
     if (after > prevLevel) setNewLevel(after);
     setStage("done");
   };
+
+  if (!ready) {
+    return <div className="min-h-dvh bg-surface-alt" aria-busy />;
+  }
 
   return (
     <div className="min-h-dvh bg-surface-alt">

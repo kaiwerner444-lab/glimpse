@@ -25,12 +25,14 @@ import {
 } from "@/lib/dashboard/synth-data";
 import { loadGamification } from "@/lib/gamification/state";
 import { loadOnboarding } from "@/lib/db/mock-db";
+import { useRequireAuth } from "@/lib/auth/require-auth";
 import type { SignalSeries } from "@/lib/dashboard/types";
 import { cn } from "@/lib/utils";
 
 type Window = "week" | "month";
 
 export default function ReportsPage() {
+  const ready = useRequireAuth();
   const [windowChoice, setWindowChoice] = useState<Window>("month");
   const [name, setName] = useState<string>("");
   const [streak, setStreak] = useState<number>(5);
@@ -69,6 +71,10 @@ export default function ReportsPage() {
   }, [series]);
 
   const print = () => window.print();
+
+  if (!ready) {
+    return <div className="min-h-dvh bg-surface-alt" aria-busy />;
+  }
 
   return (
     <div className="min-h-dvh bg-surface-alt print:bg-white">

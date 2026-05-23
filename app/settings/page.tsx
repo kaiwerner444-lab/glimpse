@@ -28,6 +28,7 @@ import {
   type ComfortPreference,
 } from "@/lib/preferences/comfort";
 import { broadcastComfortChange } from "@/lib/preferences/useComfort";
+import { useRequireAuth } from "@/lib/auth/require-auth";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
@@ -39,6 +40,7 @@ import { signOut } from "@/lib/auth/mock-auth";
 import type { OnboardingState } from "@/lib/types";
 
 export default function SettingsPage() {
+  const ready = useRequireAuth();
   const router = useRouter();
   const [state, setState] = useState<OnboardingState | null>(null);
   const [reminders, setReminders] = useState(true);
@@ -116,6 +118,10 @@ export default function SettingsPage() {
     router.push("/");
   };
 
+  if (!ready) {
+    return <div className="min-h-dvh bg-surface-alt" aria-busy />;
+  }
+
   return (
     <div className="min-h-dvh bg-surface-alt">
       <header className="px-4 sm:px-6 lg:px-8 max-w-3xl w-full mx-auto py-5 flex items-center justify-between">
@@ -128,7 +134,9 @@ export default function SettingsPage() {
             Dashboard
           </Link>
           <span className="text-ink-subtle">·</span>
-          <Logo showWordmark={false} />
+          <Link href="/" aria-label="Glimpse home">
+            <Logo showWordmark={false} />
+          </Link>
         </div>
       </header>
 

@@ -17,6 +17,7 @@ import { AchievementsGrid } from "@/components/dashboard/AchievementsGrid";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { AccountMenu } from "@/components/dashboard/AccountMenu";
 import { loadOnboarding } from "@/lib/db/mock-db";
+import { useRequireAuth } from "@/lib/auth/require-auth";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
 import {
   emptyState,
@@ -26,6 +27,7 @@ import {
 import type { GamificationState } from "@/lib/gamification/types";
 
 export default function Home() {
+  const ready = useRequireAuth();
   const [name, setName] = useState<string>("");
   const [daysSinceStart, setDaysSinceStart] = useState<number>(0);
   const [game, setGame] = useState<GamificationState>(() => emptyState());
@@ -68,6 +70,10 @@ export default function Home() {
   }, []);
 
   const level = levelFromXp(game.xp);
+
+  if (!ready) {
+    return <div className="min-h-dvh bg-surface-alt" aria-busy />;
+  }
 
   return (
     <div className="min-h-dvh bg-surface-alt">
@@ -194,7 +200,13 @@ export default function Home() {
 function Header() {
   return (
     <header className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-5 flex items-center justify-between">
-      <Logo />
+      <Link
+        href="/"
+        aria-label="Glimpse home"
+        className="rounded-lg -ml-1 px-1 py-1 hover:bg-black/[0.04] transition"
+      >
+        <Logo />
+      </Link>
       <nav className="flex items-center gap-3 text-sm">
         <Link
           href="/clinician"

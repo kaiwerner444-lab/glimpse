@@ -6,6 +6,8 @@ import { ArrowRight, Shield, Activity, Eye } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { MetaVision } from "@/components/landing/MetaVision";
+import { WhatWeScreenFor } from "@/components/landing/WhatWeScreenFor";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import { loadOnboarding } from "@/lib/db/mock-db";
 
 export default function Landing() {
@@ -25,13 +27,25 @@ export default function Landing() {
   return (
     <div className="min-h-dvh flex flex-col bg-surface-alt">
       <header className="px-6 py-5 max-w-5xl w-full mx-auto flex items-center justify-between">
-        <Logo />
-        <nav className="flex items-center gap-2 text-sm">
+        <Link
+          href="/"
+          aria-label="Glimpse home"
+          className="rounded-lg -ml-1 px-1 py-1 hover:bg-black/[0.04] transition"
+        >
+          <Logo />
+        </Link>
+        <nav className="flex items-center gap-1 text-sm">
           <Link
             href="/clinician"
             className="px-3 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
           >
             For clinicians
+          </Link>
+          <Link
+            href="/auth/signin"
+            className="px-3 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
+          >
+            Sign in
           </Link>
         </nav>
       </header>
@@ -85,8 +99,20 @@ export default function Landing() {
           />
         </section>
 
+        <section className="pb-16 sm:pb-20">
+          <HowItWorks />
+        </section>
+
+        <section className="pb-16 sm:pb-20">
+          <WhatWeScreenFor />
+        </section>
+
         <section className="pb-20">
           <MetaVision />
+        </section>
+
+        <section className="pb-20">
+          <FinalCta />
         </section>
       </main>
 
@@ -96,6 +122,33 @@ export default function Landing() {
           <span>v0.1 · onboarding preview</span>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function FinalCta() {
+  return (
+    <div className="glimpse-card p-8 sm:p-12 bg-gradient-to-br from-brand-50 via-surface to-sunrise-50 border-brand-200 text-center">
+      <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-ink leading-tight max-w-2xl mx-auto">
+        Start the morning ritual.
+      </h2>
+      <p className="mt-3 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
+        Onboarding takes about ten minutes once. Then it&apos;s five minutes a
+        day, on your own schedule.
+      </p>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Link href="/onboarding/account">
+          <Button size="lg" className="gap-2">
+            Get started
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+        <Link href="/auth/signin">
+          <Button variant="secondary" size="lg">
+            I already have an account
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
