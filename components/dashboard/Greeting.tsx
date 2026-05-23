@@ -61,9 +61,9 @@ export function Greeting({ name }: GreetingProps) {
         </p>
         <h1 className="glimpse-display text-4xl sm:text-5xl lg:text-6xl text-ink">
           {opener}
-          {name ? <>, <em className="not-italic text-brand-500">{name}</em></> : ""}.
+          {name ? <>, <span className="text-brand-500">{name}</span></> : ""}.
         </h1>
-        <p className="mt-4 text-lg sm:text-xl text-ink-muted max-w-xl leading-relaxed italic">
+        <p className="mt-4 text-lg sm:text-xl text-ink-muted max-w-xl leading-relaxed">
           {supportLine}
         </p>
       </div>

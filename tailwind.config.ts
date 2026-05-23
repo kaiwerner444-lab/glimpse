@@ -62,13 +62,14 @@ const config: Config = {
           "Segoe UI",
           "sans-serif",
         ],
+        // Display = same Inter; we just push size, weight, and tracking.
+        // No italic, no serif. Linear-style confidence.
         display: [
-          "var(--font-display)",
-          "ui-serif",
-          "Georgia",
-          "serif",
+          "var(--font-sans)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
         ],
-        serif: ["ui-serif", "Georgia", "Cambria", "serif"],
       },
       fontSize: {
         // 16px floor for body text per accessibility spec.

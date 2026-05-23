@@ -10,6 +10,7 @@ import { WhatWeScreenFor } from "@/components/landing/WhatWeScreenFor";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { MeshHero } from "@/components/landing/MeshHero";
 import { GlimpseEye } from "@/components/dashboard/GlimpseEye";
+import { Reveal } from "@/components/motion/Reveal";
 import { loadOnboarding } from "@/lib/db/mock-db";
 
 export default function Landing() {
@@ -64,91 +65,103 @@ export default function Landing() {
       <main className="flex-1 px-4 sm:px-6 max-w-6xl w-full mx-auto">
         {/* Hero */}
         <MeshHero>
-          <section className="px-4 sm:px-8 pt-14 sm:pt-24 pb-16 sm:pb-24 relative">
+          <section className="px-4 sm:px-8 pt-16 sm:pt-28 pb-20 sm:pb-32 relative">
             <div className="absolute right-4 top-12 sm:right-12 sm:top-20 opacity-90 pointer-events-none hidden md:block">
               <GlimpseEye size={220} />
             </div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-5 animate-subtle-rise">
-              Proactive screening · on your terms
-            </p>
-            <h1
-              className="glimpse-display text-5xl sm:text-7xl lg:text-[5.5rem] text-ink max-w-3xl animate-subtle-rise"
-              style={{ animationDelay: "60ms" }}
-            >
-              See the earliest signals,{" "}
-              <em className="text-brand-500 not-italic">years</em>{" "}
-              <span className="italic font-normal">before</span> a clinic would.
-            </h1>
-            <p
-              className="mt-7 text-lg sm:text-xl text-ink-muted max-w-xl leading-relaxed animate-subtle-rise"
-              style={{ animationDelay: "120ms" }}
-            >
-              Five minutes a day, in front of any mirror. Meta Ray Ban glasses,
-              your phone camera, and your genome — together they pick up the
-              small drifts in speech, movement and expression that precede
-              neurological and chronic disease.
-            </p>
-            <div
-              className="mt-10 flex flex-wrap items-center gap-3 animate-subtle-rise"
-              style={{ animationDelay: "180ms" }}
-            >
-              <Link href={hydrated ? resumeHref : "/onboarding/account"}>
-                <Button size="lg" className="gap-2 shadow-elevated">
-                  Get started
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/clinician">
-                <Button variant="secondary" size="lg">
-                  I&apos;m a clinician
-                </Button>
-              </Link>
-            </div>
+            <Reveal>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-6">
+                Proactive screening · on your terms
+              </p>
+            </Reveal>
+            <Reveal delay={0.05}>
+              <h1 className="glimpse-display text-[2.75rem] sm:text-7xl lg:text-[5.75rem] text-ink max-w-4xl">
+                The earliest signals.{" "}
+                <span className="text-brand-500">Years</span> before a clinic
+                would.
+              </h1>
+            </Reveal>
+            <Reveal delay={0.12}>
+              <p className="mt-7 text-lg sm:text-xl text-ink-muted max-w-2xl leading-relaxed">
+                Five minutes a day, in front of any mirror. Meta Ray Ban glasses,
+                your phone camera, and your genome — together they pick up the
+                small drifts in speech, movement and expression that precede
+                neurological and chronic disease.
+              </p>
+            </Reveal>
+            <Reveal delay={0.18}>
+              <div className="mt-10 flex flex-wrap items-center gap-3">
+                <Link href={hydrated ? resumeHref : "/onboarding/account"}>
+                  <Button size="lg" className="gap-2 shadow-elevated">
+                    Get started
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/clinician">
+                  <Button variant="secondary" size="lg">
+                    I&apos;m a clinician
+                  </Button>
+                </Link>
+              </div>
+            </Reveal>
 
-            <div
-              className="mt-14 flex items-center gap-6 text-sm text-ink-muted animate-subtle-rise"
-              style={{ animationDelay: "240ms" }}
-            >
-              <Trust>HIPAA-aligned</Trust>
-              <Trust>Runs on-device</Trust>
-              <Trust>Five minutes a day</Trust>
-            </div>
+            <Reveal delay={0.24}>
+              <div className="mt-16 flex items-center gap-6 text-sm text-ink-muted flex-wrap">
+                <Trust>HIPAA-aligned</Trust>
+                <Trust>Runs on-device</Trust>
+                <Trust>Five minutes a day</Trust>
+              </div>
+            </Reveal>
           </section>
         </MeshHero>
 
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-16 pb-16">
-          <FeatureTile
-            icon={<Eye className="h-5 w-5" />}
-            title="Five minutes a day"
-            body="A short mirror ritual. Speech, facial, movement, and a quick cognitive task — no more than five minutes."
-          />
-          <FeatureTile
-            icon={<Activity className="h-5 w-5" />}
-            title="Personal baseline"
-            body="We compare you to you, not to a population average. Drifts from your own normal are what matter."
-          />
-          <FeatureTile
-            icon={<Shield className="h-5 w-5" />}
-            title="HIPAA-grade privacy"
-            body="Raw audio and video are processed and discarded. Only derived features are kept, and you can delete everything at any time."
-          />
+          {[
+            {
+              icon: <Eye className="h-5 w-5" />,
+              title: "Five minutes a day",
+              body: "A short mirror ritual. Speech, facial, movement, and a quick cognitive task — no more than five minutes.",
+            },
+            {
+              icon: <Activity className="h-5 w-5" />,
+              title: "Personal baseline",
+              body: "We compare you to you, not to a population average. Drifts from your own normal are what matter.",
+            },
+            {
+              icon: <Shield className="h-5 w-5" />,
+              title: "HIPAA-grade privacy",
+              body: "Raw audio and video are processed and discarded. Only derived features are kept, and you can delete everything at any time.",
+            },
+          ].map((f, i) => (
+            <Reveal key={f.title} delay={i * 0.06}>
+              <FeatureTile {...f} />
+            </Reveal>
+          ))}
         </section>
 
-        <section className="pb-16 sm:pb-20">
-          <HowItWorks />
-        </section>
+        <Reveal>
+          <section className="pb-16 sm:pb-20">
+            <HowItWorks />
+          </section>
+        </Reveal>
 
-        <section className="pb-16 sm:pb-20">
-          <WhatWeScreenFor />
-        </section>
+        <Reveal>
+          <section className="pb-16 sm:pb-20">
+            <WhatWeScreenFor />
+          </section>
+        </Reveal>
 
-        <section className="pb-20">
-          <MetaVision />
-        </section>
+        <Reveal>
+          <section className="pb-20">
+            <MetaVision />
+          </section>
+        </Reveal>
 
-        <section className="pb-20">
-          <FinalCta />
-        </section>
+        <Reveal>
+          <section className="pb-20">
+            <FinalCta />
+          </section>
+        </Reveal>
       </main>
 
       <footer className="border-t border-black/[0.06]">
@@ -163,34 +176,38 @@ export default function Landing() {
 
 function FinalCta() {
   return (
-    <div className="relative overflow-hidden rounded-[2rem] p-10 sm:p-16 text-center">
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute -top-20 left-1/4 h-[420px] w-[420px] rounded-full bg-[radial-gradient(closest-side,_#99D4D7_0%,_transparent_72%)] opacity-70 animate-mesh-drift-a" />
-        <div className="absolute -bottom-24 right-1/4 h-[480px] w-[480px] rounded-full bg-[radial-gradient(closest-side,_#FFDDA9_0%,_transparent_72%)] opacity-60 animate-mesh-drift-b" />
-        <div className="absolute inset-0 bg-surface/40 backdrop-blur-xs" />
+    <div className="relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-ink text-white p-10 sm:p-16 text-center">
+      <div className="absolute inset-0 -z-0 opacity-50">
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-[520px] w-[520px] rounded-full bg-[radial-gradient(closest-side,_rgba(51,169,176,0.45)_0%,_transparent_70%)] animate-mesh-drift-a" />
       </div>
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-3">
-        Start the ritual
-      </p>
-      <h2 className="glimpse-display text-4xl sm:text-6xl text-ink max-w-2xl mx-auto">
-        Five minutes a day. <em className="not-italic text-brand-500">For the rest of your life.</em>
-      </h2>
-      <p className="mt-5 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
-        Onboarding takes about ten minutes once. Then it&apos;s five minutes a
-        day, on your own schedule.
-      </p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Link href="/onboarding/account">
-          <Button size="lg" className="gap-2 shadow-elevated">
-            Get started
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-        <Link href="/auth/signin">
-          <Button variant="secondary" size="lg">
-            I already have an account
-          </Button>
-        </Link>
+      <div className="relative">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-300 mb-4">
+          Start the ritual
+        </p>
+        <h2 className="glimpse-display text-4xl sm:text-6xl text-white max-w-2xl mx-auto">
+          Five minutes a day. For the rest of your life.
+        </h2>
+        <p className="mt-5 text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
+          Onboarding takes about ten minutes once. Then it&apos;s five
+          minutes a day, on your own schedule.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/onboarding/account">
+            <Button size="lg" className="gap-2 shadow-elevated bg-white text-ink hover:bg-white/90 border-white">
+              Get started
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Link href="/auth/signin">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="bg-transparent text-white border-white/30 hover:bg-white/10"
+            >
+              I already have an account
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

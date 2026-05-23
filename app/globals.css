@@ -52,12 +52,12 @@
     @apply h-px bg-black/[0.06] w-full;
   }
 
-  /* Display style — used for landing hero and signature dashboard moments. */
+  /* Display style — Linear/Stripe-style confident sans. */
   .glimpse-display {
-    font-family: var(--font-display), Georgia, serif;
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1.02;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
   }
 
   /* Refined glass card with backdrop blur. For elevated surfaces. */
