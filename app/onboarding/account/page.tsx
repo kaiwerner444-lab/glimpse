@@ -11,7 +11,19 @@ import { Field } from "@/components/ui/Field";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
 import { signUp } from "@/lib/auth/mock-auth";
-import type { FitzpatrickEthnicityHint, Sex } from "@/lib/types";
+import type {
+  FitzpatrickEthnicityHint,
+  HandDominance,
+  Sex,
+  UnitSystem,
+} from "@/lib/types";
+import {
+  cmToFeetInches,
+  feetInchesToCm,
+  kgToLbs,
+  lbsToKg,
+} from "@/lib/units";
+import { cn } from "@/lib/utils";
 
 const SEX_OPTIONS: Array<{ value: Sex; label: string }> = [
   { value: "female", label: "Female" },
@@ -33,6 +45,29 @@ const ETHNICITY_OPTIONS: Array<{
   { value: "unspecified", label: "Prefer not to say" },
 ];
 
+const HAND_OPTIONS: Array<{ value: HandDominance; label: string }> = [
+  { value: "right", label: "Right-handed" },
+  { value: "left", label: "Left-handed" },
+  { value: "ambidextrous", label: "Ambidextrous" },
+];
+
+const LANGUAGE_OPTIONS = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Portuguese",
+  "Italian",
+  "Mandarin",
+  "Cantonese",
+  "Japanese",
+  "Korean",
+  "Arabic",
+  "Hindi",
+  "Russian",
+  "Other",
+];
+
 export default function AccountStep() {
   const router = useRouter();
   const { state, update } = useOnboardingState();
@@ -41,14 +76,64 @@ export default function AccountStep() {
   const [password, setPassword] = useState("");
   const [dob, setDob] = useState(state.account?.dateOfBirth ?? "");
   const [sex, setSex] = useState<Sex>(state.account?.sex ?? "prefer_not_to_say");
-  const [heightCm, setHeightCm] = useState<string>(
-    state.account ? String(state.account.heightCm) : "",
+
+  // Unit system + height/weight state. Internally always cm/kg.
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>(
+    state.account?.unitSystem ?? "metric",
   );
-  const [weightKg, setWeightKg] = useState<string>(
-    state.account ? String(state.account.weightKg) : "",
+
+  const [heightCm, setHeightCm] = useState<number | "">(
+    state.account?.heightCm ?? "",
   );
+  const [weightKg, setWeightKg] = useState<number | "">(
+    state.account?.weightKg ?? "",
+  );
+
+  // Imperial display values derived from the canonical cm/kg.
+  const heightImperial = useMemo(() => {
+    if (heightCm === "" || !Number.isFinite(heightCm))
+      return { feet: "", inches: "" };
+    const { feet, inches } = cmToFeetInches(heightCm as number);
+    return { feet: String(feet), inches: String(inches) };
+  }, [heightCm]);
+  const weightLbs = useMemo(() => {
+    if (weightKg === "" || !Number.isFinite(weightKg)) return "";
+    return String(kgToLbs(weightKg as number));
+  }, [weightKg]);
+
+  // Imperial inputs (raw text so partial values are editable)
+  const [feetInput, setFeetInput] = useState<string>(heightImperial.feet);
+  const [inchesInput, setInchesInput] = useState<string>(heightImperial.inches);
+  const [lbsInput, setLbsInput] = useState<string>(weightLbs);
+
+  // When the user changes imperial fields, write back to the metric source.
+  const updateHeightFromImperial = (feet: string, inches: string) => {
+    const f = Number(feet);
+    const i = Number(inches);
+    if (!Number.isFinite(f) || feet === "") {
+      setHeightCm("");
+      return;
+    }
+    const safeInches = Number.isFinite(i) ? i : 0;
+    setHeightCm(feetInchesToCm(f, safeInches));
+  };
+  const updateWeightFromImperial = (lbs: string) => {
+    const v = Number(lbs);
+    if (!Number.isFinite(v) || lbs === "") {
+      setWeightKg("");
+      return;
+    }
+    setWeightKg(lbsToKg(v));
+  };
+
   const [ethnicity, setEthnicity] = useState<FitzpatrickEthnicityHint>(
     state.account?.ethnicityHint ?? "unspecified",
+  );
+  const [handDominance, setHandDominance] = useState<HandDominance>(
+    state.account?.handDominance ?? "right",
+  );
+  const [language, setLanguage] = useState<string>(
+    state.account?.primaryLanguage ?? "English",
   );
   const [hipaa, setHipaa] = useState(state.account?.hipaaConsent ?? false);
   const [gdpr, setGdpr] = useState(state.account?.gdprConsent ?? false);
@@ -59,8 +144,8 @@ export default function AccountStep() {
     if (!email.match(/.+@.+\..+/)) errs.email = "Enter a valid email";
     if (password.length < 8) errs.password = "Use 8 characters or more";
     if (!dob) errs.dob = "Required";
-    if (!heightCm || Number(heightCm) <= 0) errs.heightCm = "Required";
-    if (!weightKg || Number(weightKg) <= 0) errs.weightKg = "Required";
+    if (heightCm === "" || (heightCm as number) <= 0) errs.heightCm = "Required";
+    if (weightKg === "" || (weightKg as number) <= 0) errs.weightKg = "Required";
     if (!hipaa) errs.hipaa = "Consent required to proceed";
     return errs;
   }, [email, password, dob, heightCm, weightKg, hipaa]);
@@ -78,12 +163,15 @@ export default function AccountStep() {
         sex,
         heightCm: Number(heightCm),
         weightKg: Number(weightKg),
+        unitSystem,
+        handDominance,
+        primaryLanguage: language,
         ethnicityHint: ethnicity,
         hipaaConsent: hipaa,
         gdprConsent: gdpr,
       });
-      update({ account, step: "glasses" });
-      router.push("/onboarding/glasses");
+      update({ account, step: "clinical-context" });
+      router.push("/onboarding/clinical-context");
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +187,7 @@ export default function AccountStep() {
         <>
           <span className="text-sm text-ink-muted">
             Already have an account?{" "}
-            <Link href="/onboarding/account" className="text-brand-500">
+            <Link href="/auth/signin" className="text-brand-500">
               Sign in
             </Link>
           </span>
@@ -111,7 +199,12 @@ export default function AccountStep() {
     >
       <div className="glimpse-card p-6 sm:p-8 flex flex-col gap-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Field label="Email" htmlFor="email" required error={errors.email && email ? errors.email : undefined}>
+          <Field
+            label="Email"
+            htmlFor="email"
+            required
+            error={errors.email && email ? errors.email : undefined}
+          >
             <Input
               id="email"
               type="email"
@@ -121,7 +214,13 @@ export default function AccountStep() {
               placeholder="you@example.com"
             />
           </Field>
-          <Field label="Password" htmlFor="password" required hint="At least 8 characters." error={errors.password && password ? errors.password : undefined}>
+          <Field
+            label="Password"
+            htmlFor="password"
+            required
+            hint="At least 8 characters."
+            error={errors.password && password ? errors.password : undefined}
+          >
             <Input
               id="password"
               type="password"
@@ -143,7 +242,12 @@ export default function AccountStep() {
               onChange={(e) => setDob(e.target.value)}
             />
           </Field>
-          <Field label="Biological sex" htmlFor="sex" required hint="Used to weight risk priors. You can update this later.">
+          <Field
+            label="Biological sex"
+            htmlFor="sex"
+            required
+            hint="Used to weight risk priors. You can update this later."
+          >
             <Select
               id="sex"
               value={sex}
@@ -156,25 +260,128 @@ export default function AccountStep() {
               ))}
             </Select>
           </Field>
-          <Field label="Height (cm)" htmlFor="height" required>
-            <Input
-              id="height"
-              type="number"
-              inputMode="numeric"
-              value={heightCm}
-              onChange={(e) => setHeightCm(e.target.value)}
-              placeholder="178"
-            />
+        </div>
+
+        {/* Units toggle + height/weight */}
+        <div>
+          <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+            <span className="text-sm font-medium text-ink">
+              Height & weight
+            </span>
+            <UnitToggle value={unitSystem} onChange={setUnitSystem} />
+          </div>
+
+          {unitSystem === "metric" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <Field label="Height (cm)" htmlFor="height-cm" required>
+                <Input
+                  id="height-cm"
+                  type="number"
+                  inputMode="numeric"
+                  value={heightCm === "" ? "" : heightCm}
+                  onChange={(e) =>
+                    setHeightCm(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="178"
+                />
+              </Field>
+              <Field label="Weight (kg)" htmlFor="weight-kg" required>
+                <Input
+                  id="weight-kg"
+                  type="number"
+                  inputMode="numeric"
+                  value={weightKg === "" ? "" : weightKg}
+                  onChange={(e) =>
+                    setWeightKg(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  placeholder="78"
+                />
+              </Field>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <Field label="Height" required hint="Feet and inches">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={feetInput}
+                      onChange={(e) => {
+                        setFeetInput(e.target.value);
+                        updateHeightFromImperial(e.target.value, inchesInput);
+                      }}
+                      placeholder="5"
+                      aria-label="Feet"
+                    />
+                  </div>
+                  <span className="text-ink-muted text-sm">ft</span>
+                  <div className="flex-1">
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      value={inchesInput}
+                      onChange={(e) => {
+                        setInchesInput(e.target.value);
+                        updateHeightFromImperial(feetInput, e.target.value);
+                      }}
+                      placeholder="10"
+                      aria-label="Inches"
+                    />
+                  </div>
+                  <span className="text-ink-muted text-sm">in</span>
+                </div>
+              </Field>
+              <Field label="Weight (lb)" required>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={lbsInput}
+                  onChange={(e) => {
+                    setLbsInput(e.target.value);
+                    updateWeightFromImperial(e.target.value);
+                  }}
+                  placeholder="172"
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Field
+            label="Hand dominance"
+            htmlFor="hand"
+            hint="Lets us interpret finger-tap differences correctly."
+          >
+            <Select
+              id="hand"
+              value={handDominance}
+              onChange={(e) => setHandDominance(e.target.value as HandDominance)}
+            >
+              {HAND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
           </Field>
-          <Field label="Weight (kg)" htmlFor="weight" required>
-            <Input
-              id="weight"
-              type="number"
-              inputMode="numeric"
-              value={weightKg}
-              onChange={(e) => setWeightKg(e.target.value)}
-              placeholder="78"
-            />
+          <Field
+            label="Primary language"
+            htmlFor="language"
+            hint="Affects verbal-fluency norms. App instructions are English in v1."
+          >
+            <Select
+              id="language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            >
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field
             label="Skin tone"
@@ -223,5 +430,34 @@ export default function AccountStep() {
         </div>
       </div>
     </StepShell>
+  );
+}
+
+function UnitToggle({
+  value,
+  onChange,
+}: {
+  value: UnitSystem;
+  onChange: (v: UnitSystem) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-xl bg-surface p-1 border border-black/[0.06]">
+      {(["metric", "imperial"] as const).map((u) => (
+        <button
+          key={u}
+          type="button"
+          onClick={() => onChange(u)}
+          aria-pressed={value === u}
+          className={cn(
+            "rounded-lg px-3 py-1 text-xs font-medium transition",
+            value === u
+              ? "bg-brand-500 text-white"
+              : "text-ink-muted hover:text-ink",
+          )}
+        >
+          {u === "metric" ? "cm · kg" : "ft · lb"}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -3,7 +3,13 @@
 // vars are present. Falls back gracefully when they aren't so the app
 // builds and runs in local-only mode for previews.
 
-import type { Account, Sex, FitzpatrickEthnicityHint } from "@/lib/types";
+import type {
+  Account,
+  Sex,
+  FitzpatrickEthnicityHint,
+  UnitSystem,
+  HandDominance,
+} from "@/lib/types";
 import { supabase } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "glimpse.account";
@@ -15,6 +21,9 @@ export interface SignUpInput {
   sex: Sex;
   heightCm: number;
   weightKg: number;
+  unitSystem: UnitSystem;
+  handDominance?: HandDominance;
+  primaryLanguage?: string;
   ethnicityHint: FitzpatrickEthnicityHint;
   hipaaConsent: boolean;
   gdprConsent: boolean;
@@ -57,6 +66,9 @@ export async function signUp(input: SignUpInput): Promise<Account> {
     sex: input.sex,
     heightCm: input.heightCm,
     weightKg: input.weightKg,
+    unitSystem: input.unitSystem,
+    handDominance: input.handDominance,
+    primaryLanguage: input.primaryLanguage,
     ethnicityHint: input.ethnicityHint,
     hipaaConsent: input.hipaaConsent,
     gdprConsent: input.gdprConsent,

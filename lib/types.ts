@@ -4,6 +4,32 @@
 
 export type Sex = "female" | "male" | "intersex" | "prefer_not_to_say";
 
+export type UnitSystem = "metric" | "imperial";
+
+export type HandDominance = "right" | "left" | "ambidextrous";
+
+export type VisionCorrection = "none" | "glasses" | "contacts";
+
+export type HearingStatus = "normal" | "hearing_aids" | "some_loss_no_aids";
+
+export type EducationLevel =
+  | "less_than_high_school"
+  | "high_school"
+  | "some_college"
+  | "bachelor"
+  | "graduate";
+
+export type MedicationCategory =
+  | "beta_blockers"
+  | "antidepressants"
+  | "antianxiety"
+  | "antiparkinsonian"
+  | "anticholinergics"
+  | "diabetes_meds"
+  | "bp_meds"
+  | "sleep_meds"
+  | "other";
+
 export type FitzpatrickEthnicityHint =
   | "type_1"
   | "type_2"
@@ -18,12 +44,36 @@ export interface Account {
   email: string;
   dateOfBirth: string; // ISO date
   sex: Sex;
+  // Source of truth is always metric. unitSystem just tracks the user's
+  // display preference so we render the same units they entered.
   heightCm: number;
   weightKg: number;
+  unitSystem: UnitSystem;
+  // Hand dominance — known modifier for finger-tap baseline; labelling
+  // 'dominant' / 'non-dominant' is more clinically meaningful than L/R.
+  handDominance?: HandDominance;
+  // Primary language — affects verbal-fluency norms; instructions are
+  // English-only in v1.
+  primaryLanguage?: string;
   ethnicityHint: FitzpatrickEthnicityHint;
   hipaaConsent: boolean;
   gdprConsent: boolean;
   createdAt: string;
+}
+
+// Clinical context — captured in its own onboarding step so the daily
+// session can interpret signals correctly (education modifies cognitive
+// norms; medications confound HR / tremor / prosody; existing diagnoses
+// tell us NOT to flag what's already known).
+export interface ClinicalContext {
+  educationLevel?: EducationLevel;
+  vision?: VisionCorrection;
+  hearing?: HearingStatus;
+  // Conditions already diagnosed — we won't re-detect what's known.
+  existingDiagnoses: TrackedCondition[];
+  // Medication categories that meaningfully affect captured signals.
+  medications: MedicationCategory[];
+  notes?: string;
 }
 
 export type GlassesMode = "ray_ban_meta" | "phone_fallback" | "deferred";
@@ -124,6 +174,7 @@ export interface BaselineSession {
 
 export type OnboardingStep =
   | "account"
+  | "clinical-context"
   | "glasses"
   | "genomics"
   | "family-history"
@@ -133,6 +184,7 @@ export type OnboardingStep =
 export interface OnboardingState {
   step: OnboardingStep;
   account?: Account;
+  clinicalContext?: ClinicalContext;
   glasses?: GlassesSetup;
   genomics?: GenomicsSetup;
   familyHistory?: FamilyHistory;

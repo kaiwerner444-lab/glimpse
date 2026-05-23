@@ -10,6 +10,7 @@ import type { OnboardingState, OnboardingStep } from "@/lib/types";
 
 const STEP_ORDER: OnboardingStep[] = [
   "account",
+  "clinical-context",
   "glasses",
   "genomics",
   "family-history",

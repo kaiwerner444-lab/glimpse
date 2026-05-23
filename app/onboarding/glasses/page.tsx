@@ -18,7 +18,7 @@ export default function GlassesStep() {
   const [pairing, setPairing] = useState(false);
   const [paired, setPaired] = useState(!!state.glasses?.pairedAt);
 
-  const goBack = () => router.push("/onboarding/account");
+  const goBack = () => router.push("/onboarding/clinical-context");
 
   const onContinue = () => {
     if (!mode) return;
