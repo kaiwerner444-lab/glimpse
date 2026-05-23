@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
 import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
 import { scoreTask } from "@/lib/session/scoring";
+import { loadOnboarding } from "@/lib/db/mock-db";
 import { TaskRecorder } from "@/lib/storage/recorder";
 import {
   startSession,
@@ -237,7 +238,13 @@ function SessionRunnerInner({
         speechTranscript: transcript,
         ...interactionRef.current,
       };
-      const scored = scoreTask({ task, result: baseResult, features });
+      const educationLevel = loadOnboarding().clinicalContext?.educationLevel;
+      const scored = scoreTask({
+        task,
+        result: baseResult,
+        features,
+        educationLevel,
+      });
       const next: TaskResult = {
         ...baseResult,
         taskScore: scored.score,
@@ -388,10 +395,10 @@ function SessionRunnerInner({
           audio={needsAudio}
           video={needsVideo}
           capturing={!paused && !!stream}
-          // Top-right of the viewport: stays visible during the task
-          // without covering the primary "I'm done" action at the
-          // bottom of the page.
-          className="fixed top-20 right-4 sm:right-6 w-36 h-24 sm:w-44 sm:h-32 z-30"
+          // Pinned bottom-right on desktop, but on mobile we shrink and
+          // tuck to the bottom-left so the sticky action footer stays
+          // tappable end-to-end without overlap.
+          className="fixed bottom-20 left-4 sm:left-auto sm:right-6 sm:top-20 w-28 h-20 sm:w-44 sm:h-32 z-30"
         />
       )}
     </div>

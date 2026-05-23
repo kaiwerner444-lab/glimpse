@@ -92,11 +92,27 @@ export default function SessionsPage() {
         </Reveal>
 
         {summaries.length === 0 ? (
-          <section className="glimpse-card p-8 text-center">
-            <p className="text-base text-ink-muted">
-              You haven&apos;t completed a session yet. Start with the daily
-              ritual on the dashboard.
-            </p>
+          <section className="glimpse-card-elevated p-10 text-center relative overflow-hidden">
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,_rgba(0,112,126,0.15)_0%,_transparent_72%)] animate-mesh-drift-a pointer-events-none" />
+            <div className="relative">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-2">
+                Nothing here yet
+              </p>
+              <h2 className="text-2xl font-semibold text-ink">
+                Your first session is the first chapter
+              </h2>
+              <p className="text-base text-ink-muted mt-3 max-w-md mx-auto leading-relaxed">
+                Once you complete a session, it shows up here with per-task
+                scores, your captured answers, and the features the camera and
+                mic picked up.
+              </p>
+              <Link
+                href="/session/daily"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-500 text-white px-5 h-11 text-sm font-medium hover:bg-brand-600 transition shadow-elevated"
+              >
+                Start a session
+              </Link>
+            </div>
           </section>
         ) : (
           <ul className="flex flex-col gap-3">

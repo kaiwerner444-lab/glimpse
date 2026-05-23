@@ -9,6 +9,7 @@
 
 import type { Task, TaskResult } from "./types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
+import type { EducationLevel } from "@/lib/types";
 
 export interface TaskScore {
   score: number;
@@ -19,34 +20,72 @@ interface ScoreInputs {
   task: Task;
   result: TaskResult;
   features?: TaskFeatures;
+  // Education modifies cognitive-norm interpretation (MoCA, Trail
+  // Making, MMSE all adjust by years of education). We translate that
+  // into a small score multiplier so highly-educated users have to
+  // perform proportionally better to hit the same band, and vice versa.
+  educationLevel?: EducationLevel;
 }
 
-export function scoreTask({ task, result, features }: ScoreInputs): TaskScore {
+// Education multiplier — higher education raises the bar slightly.
+// Numbers derived loosely from standard MoCA education-adjustment rules.
+function educationMultiplier(level?: EducationLevel): number {
+  switch (level) {
+    case "graduate":
+      return 0.92;
+    case "bachelor":
+      return 0.96;
+    case "some_college":
+      return 1.0;
+    case "high_school":
+      return 1.04;
+    case "less_than_high_school":
+      return 1.08;
+    default:
+      return 1.0;
+  }
+}
+
+export function scoreTask({
+  task,
+  result,
+  features,
+  educationLevel,
+}: ScoreInputs): TaskScore {
+  const adj = educationMultiplier(educationLevel);
+  const apply = (s: TaskScore): TaskScore => {
+    // Only adjust cognitive-loading tasks. Acoustic / movement tasks
+    // are interpreted on their own scale.
+    const cognitive = ["digit_span", "stroop", "trail_making", "verbal_fluency"];
+    if (!cognitive.includes(task.kind)) return s;
+    return { score: Math.max(0, Math.min(100, Math.round(s.score * adj))), note: s.note };
+  };
+
   switch (task.kind) {
     case "instruction":
-      return scoreInstruction(task, features);
+      return apply(scoreInstruction(task, features));
     case "read_passage":
-      return scoreSpeechTask(result, features, "passage");
+      return apply(scoreSpeechTask(result, features, "passage"));
     case "open_prompt":
-      return scoreSpeechTask(result, features, "prompt");
+      return apply(scoreSpeechTask(result, features, "prompt"));
     case "verbal_fluency":
-      return scoreFluency(result);
+      return apply(scoreFluency(result));
     case "countdown_math":
-      return scoreSpeechTask(result, features, "math");
+      return apply(scoreSpeechTask(result, features, "math"));
     case "diadochokinesis":
-      return scoreDiadochokinesis(features);
+      return apply(scoreDiadochokinesis(features));
     case "smooth_pursuit":
-      return { score: completedScore(result), note: "Smooth-pursuit completed." };
+      return apply({ score: completedScore(result), note: "Smooth-pursuit completed." });
     case "finger_tap":
-      return scoreFingerTap(features);
+      return apply(scoreFingerTap(features));
     case "digit_span":
-      return scoreDigitSpan(result);
+      return apply(scoreDigitSpan(result));
     case "stroop":
-      return scoreStroop(result);
+      return apply(scoreStroop(result));
     case "trail_making":
-      return scoreTrailMaking(result);
+      return apply(scoreTrailMaking(result));
     case "spiral_drawing":
-      return scoreSpiral(result);
+      return apply(scoreSpiral(result));
   }
 }
 

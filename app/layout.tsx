@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PageTransition } from "@/components/motion/PageTransition";
+import { ToastProvider } from "@/components/ui/Toast";
 
 // Inter as the single typeface across the app, full variable axis.
 // Used at every scale — body, UI, and tracking-tight display headlines.
@@ -34,7 +35,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <PageTransition>{children}</PageTransition>
+        <ToastProvider>
+          <PageTransition>{children}</PageTransition>
+        </ToastProvider>
       </body>
     </html>
   );

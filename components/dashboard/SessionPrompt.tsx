@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sunrise, Clock, Play } from "lucide-react";
+import { Sunrise, Clock, Play, Anchor } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { loadGamification } from "@/lib/gamification/state";
 
 interface SessionPromptProps {
   available: boolean;
@@ -22,6 +24,10 @@ export function SessionPrompt({
   href,
 }: SessionPromptProps) {
   const router = useRouter();
+  const [habitAnchor, setHabitAnchor] = useState<string | null>(null);
+  useEffect(() => {
+    setHabitAnchor(loadGamification().habitAnchor);
+  }, []);
 
   return (
     <div className="relative overflow-hidden glimpse-card-elevated p-6 sm:p-8">
@@ -48,6 +54,12 @@ export function SessionPrompt({
             <span className="mx-2 text-ink-subtle">·</span>
             {taskCount} short tasks
           </p>
+          {habitAnchor ? (
+            <p className="mt-2 text-sm text-ink-muted inline-flex items-center gap-1.5">
+              <Anchor className="h-3.5 w-3.5 text-brand-500" />
+              After your <span className="font-medium text-ink">{habitAnchor}</span>.
+            </p>
+          ) : null}
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {available ? (

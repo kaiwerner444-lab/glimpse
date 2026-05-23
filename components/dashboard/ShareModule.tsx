@@ -25,6 +25,7 @@ import {
   type ShareScope,
 } from "@/lib/sharing/shares";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 
 export function ShareModule() {
@@ -41,6 +42,7 @@ export function ShareModule() {
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const configured = isSupabaseConfigured();
+  const toast = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -72,9 +74,19 @@ export function ShareModule() {
       setEmail("");
       setScope("reports");
       setAdding(false);
+      toast.push({
+        tone: "success",
+        title: "Share link created",
+        body: `${result.record.recipientLabel} can view your report for 14 days.`,
+      });
       return;
     }
     setSubmitError({ reason: result.reason, message: result.message });
+    toast.push({
+      tone: "error",
+      title: "Couldn't create the share link",
+      body: result.message,
+    });
   };
 
   const handleCopy = async (s: ShareRecord) => {

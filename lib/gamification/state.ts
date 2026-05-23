@@ -79,6 +79,48 @@ export function withFreshFreezes(state: GamificationState): GamificationState {
   };
 }
 
+// Auto-consume streak freezes for any missed days between lastSessionAt
+// and now. Keeps the streak intact at the cost of one freeze per missed
+// day. Returns a new state + the number of freezes consumed so the UI
+// can surface the message ("We used a streak freeze yesterday").
+export function consumeFreezesIfNeeded(
+  prev: GamificationState,
+  now: Date = new Date(),
+): { next: GamificationState; consumed: number } {
+  let state = withFreshFreezes(prev);
+  if (!state.lastSessionAt || state.currentStreak === 0) {
+    return { next: state, consumed: 0 };
+  }
+  const last = new Date(state.lastSessionAt);
+  const dayMs = 24 * 60 * 60 * 1000;
+  // Days since last session, rounded down at local midnight.
+  const startOfDay = (d: Date) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x.getTime();
+  };
+  const daysMissed = Math.max(
+    0,
+    Math.floor((startOfDay(now) - startOfDay(last)) / dayMs) - 1,
+  );
+  if (daysMissed <= 0) return { next: state, consumed: 0 };
+
+  let consumed = 0;
+  while (consumed < daysMissed && state.streakFreezesAvailable > 0) {
+    state = {
+      ...state,
+      streakFreezesAvailable: state.streakFreezesAvailable - 1,
+      streakFreezesUsedThisMonth: state.streakFreezesUsedThisMonth + 1,
+    };
+    consumed += 1;
+  }
+  if (consumed < daysMissed) {
+    // Ran out of freezes — streak breaks.
+    state = { ...state, currentStreak: 0 };
+  }
+  return { next: state, consumed };
+}
+
 export function loadGamification(): GamificationState {
   if (typeof window === "undefined") return emptyState();
   const raw = window.localStorage.getItem(STORAGE_KEY);

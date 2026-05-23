@@ -19,8 +19,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { RadioGroup } from "@/components/ui/RadioGroup";
+import { Select } from "@/components/ui/Select";
 import { saveOnboarding } from "@/lib/db/mock-db";
-import type { GlassesMode } from "@/lib/types";
+import type { GlassesMode, HandDominance, Sex } from "@/lib/types";
 import {
   loadComfort,
   saveComfort,
@@ -150,37 +151,19 @@ export default function SettingsPage() {
           </h1>
         </section>
 
-        {/* Profile */}
-        <SettingsSection
-          icon={<User className="h-5 w-5" />}
-          title="Profile"
-          subtitle="The basics you provided during onboarding."
-          delay={60}
-        >
-          {state?.account ? (
-            <div className="space-y-4">
-              <Field label="Email">
-                <Input value={state.account.email} readOnly disabled />
-              </Field>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Date of birth">
-                  <Input value={state.account.dateOfBirth} readOnly disabled />
-                </Field>
-                <Field label="Biological sex">
-                  <Input value={state.account.sex} readOnly disabled />
-                </Field>
-              </div>
-              <p className="text-xs text-ink-muted">
-                Profile editing lands in v2. For now, account details can be
-                updated by signing in fresh.
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-ink-muted">
-              No profile data found. Complete onboarding first.
-            </p>
-          )}
-        </SettingsSection>
+        {/* Profile — fully editable */}
+        <ProfileSection
+          state={state}
+          onSave={(patch) => {
+            if (!state?.account) return;
+            const next = {
+              ...state,
+              account: { ...state.account, ...patch },
+            };
+            saveOnboarding(next);
+            setState(next);
+          }}
+        />
 
         {/* Hardware */}
         <SettingsSection
@@ -515,6 +498,161 @@ export default function SettingsPage() {
       </main>
     </div>
   );
+}
+
+interface ProfileSectionProps {
+  state: OnboardingState | null;
+  onSave: (patch: Partial<NonNullable<OnboardingState["account"]>>) => void;
+}
+
+function ProfileSection({ state, onSave }: ProfileSectionProps) {
+  const acc = state?.account;
+  const [editing, setEditing] = useState(false);
+  const [dob, setDob] = useState(acc?.dateOfBirth ?? "");
+  const [sex, setSex] = useState<Sex>(acc?.sex ?? "prefer_not_to_say");
+  const [hand, setHand] = useState<HandDominance>(
+    acc?.handDominance ?? "right",
+  );
+  const [language, setLanguage] = useState<string>(
+    acc?.primaryLanguage ?? "English",
+  );
+
+  useEffect(() => {
+    if (acc) {
+      setDob(acc.dateOfBirth);
+      setSex(acc.sex);
+      setHand(acc.handDominance ?? "right");
+      setLanguage(acc.primaryLanguage ?? "English");
+    }
+  }, [acc]);
+
+  return (
+    <SettingsSection
+      icon={<User className="h-5 w-5" />}
+      title="Profile"
+      subtitle="Update demographics and the interpretive context for your sessions."
+      delay={60}
+    >
+      {!acc ? (
+        <p className="text-sm text-ink-muted">
+          No profile data found. Complete onboarding first.
+        </p>
+      ) : !editing ? (
+        <div className="space-y-3">
+          <ReadRow label="Email" value={acc.email} />
+          <ReadRow label="Date of birth" value={acc.dateOfBirth} />
+          <ReadRow label="Biological sex" value={prettySex(acc.sex)} />
+          <ReadRow
+            label="Hand dominance"
+            value={prettyHand(acc.handDominance)}
+          />
+          <ReadRow
+            label="Primary language"
+            value={acc.primaryLanguage ?? "—"}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => setEditing(true)}
+            className="mt-2"
+          >
+            Edit profile
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <Field label="Email" hint="Email changes require re-verification.">
+            <Input value={acc.email} readOnly disabled />
+          </Field>
+          <Field label="Date of birth">
+            <Input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Biological sex">
+              <Select value={sex} onChange={(e) => setSex(e.target.value as Sex)}>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="intersex">Intersex</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </Select>
+            </Field>
+            <Field label="Hand dominance">
+              <Select
+                value={hand}
+                onChange={(e) => setHand(e.target.value as HandDominance)}
+              >
+                <option value="right">Right-handed</option>
+                <option value="left">Left-handed</option>
+                <option value="ambidextrous">Ambidextrous</option>
+              </Select>
+            </Field>
+          </div>
+          <Field label="Primary language">
+            <Select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+            >
+              {["English", "Spanish", "French", "German", "Portuguese", "Italian", "Mandarin", "Cantonese", "Japanese", "Korean", "Arabic", "Hindi", "Russian", "Other"].map(
+                (l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ),
+              )}
+            </Select>
+          </Field>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                onSave({
+                  dateOfBirth: dob,
+                  sex,
+                  handDominance: hand,
+                  primaryLanguage: language,
+                });
+                setEditing(false);
+              }}
+            >
+              Save
+            </Button>
+            <Button variant="ghost" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+    </SettingsSection>
+  );
+}
+
+function ReadRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-black/[0.04] pb-2 last:border-0 last:pb-0">
+      <span className="text-sm text-ink-muted">{label}</span>
+      <span className="text-sm font-medium text-ink">{value}</span>
+    </div>
+  );
+}
+
+function prettySex(s: Sex): string {
+  return ({
+    female: "Female",
+    male: "Male",
+    intersex: "Intersex",
+    prefer_not_to_say: "Prefer not to say",
+  } as const)[s];
+}
+
+function prettyHand(h?: HandDominance): string {
+  if (!h) return "—";
+  return ({
+    right: "Right-handed",
+    left: "Left-handed",
+    ambidextrous: "Ambidextrous",
+  } as const)[h];
 }
 
 function SettingsSection({

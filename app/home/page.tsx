@@ -31,6 +31,8 @@ import {
 import {
   emptyState,
   loadGamification,
+  saveGamification,
+  consumeFreezesIfNeeded,
   levelFromXp,
 } from "@/lib/gamification/state";
 import type { GamificationState } from "@/lib/gamification/types";
@@ -65,9 +67,15 @@ export default function Home() {
       setDaysSinceStart(days);
     }
 
-    // Hydrate gamification, seeding a plausible starting state for the demo
-    // when nothing exists yet — so the leaderboard and level badge feel alive.
-    const existing = loadGamification();
+    // Hydrate gamification. First consume any pending streak freezes
+    // for missed days — keeps the streak alive automatically while
+    // freezes last, then breaks it cleanly when they run out.
+    let existing = loadGamification();
+    const { next: afterFreezes, consumed } = consumeFreezesIfNeeded(existing);
+    if (consumed > 0) {
+      existing = afterFreezes;
+      saveGamification(afterFreezes);
+    }
     if (existing.totalSessions === 0) {
       const seeded: GamificationState = {
         ...existing,
