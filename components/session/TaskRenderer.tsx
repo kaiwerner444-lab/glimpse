@@ -368,11 +368,13 @@ function DigitSpanTask({
               type="text"
               inputMode="numeric"
               autoFocus
+              autoComplete="off"
+              spellCheck={false}
               value={answer}
               onChange={(e) =>
                 setAnswer(e.target.value.replace(/[^0-9]/g, ""))
               }
-              placeholder={`e.g. ${expected}`}
+              aria-label="Type the digits you memorised"
               className="text-center text-2xl font-semibold h-14 w-64 rounded-xl border border-black/10 bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 tracking-widest"
             />
             <button
