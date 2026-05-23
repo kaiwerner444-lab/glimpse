@@ -12,6 +12,7 @@ import {
   BASELINE_DURATION_SECONDS,
 } from "@/lib/session/baseline";
 import type { TaskResult } from "@/lib/session/types";
+import type { TaskFeatures } from "@/lib/ml/extractor";
 
 type Stage = "intro" | "running" | "done";
 
@@ -22,6 +23,7 @@ export default function BaselineStep() {
     state.baseline?.completedAt ? "done" : "intro",
   );
   const [results, setResults] = useState<TaskResult[]>([]);
+  const [features, setFeatures] = useState<TaskFeatures[]>([]);
 
   const finish = (completed: boolean) => {
     update({
@@ -45,8 +47,9 @@ export default function BaselineStep() {
       >
         <SessionRunner
           tasks={BASELINE_TASKS}
-          onComplete={(r) => {
+          onComplete={(r, f) => {
             setResults(r);
+            setFeatures(f);
             setStage("done");
           }}
           onSkipAll={() => setStage("done")}
@@ -83,7 +86,7 @@ export default function BaselineStep() {
               </p>
             </div>
           </div>
-          <ResultsRecap results={results} />
+          <ResultsRecap results={results} features={features} />
         </div>
       </StepShell>
     );
@@ -182,18 +185,38 @@ function PermissionTile({
   );
 }
 
-function ResultsRecap({ results }: { results: TaskResult[] }) {
+function ResultsRecap({
+  results,
+  features,
+}: {
+  results: TaskResult[];
+  features: TaskFeatures[];
+}) {
   if (results.length === 0) return null;
   const completed = results.filter((r) => !r.skipped).length;
-  const tapCounts = results.flatMap((r) =>
-    typeof r.fingerTapCount === "number" ? [r.fingerTapCount] : [],
-  );
   const stroop = results.find(
     (r) =>
       typeof r.stroopCorrect === "number" &&
       typeof r.stroopTotal === "number" &&
       r.stroopTotal > 0,
   );
+
+  // Aggregate across all task-feature payloads.
+  const allSymmetry = features
+    .map((f) => f.meanSymmetryPercent)
+    .filter((v): v is number => typeof v === "number");
+  const meanSymmetry = allSymmetry.length
+    ? allSymmetry.reduce((a, b) => a + b, 0) / allSymmetry.length
+    : null;
+
+  const tapFeatures = features.find((f) => typeof f.tapCount === "number");
+  const audioFeatures = features.find(
+    (f) => typeof f.meanPitchHz === "number",
+  );
+  const poseFeatures = features.find(
+    (f) => typeof f.postureSwayCm === "number",
+  );
+  const totalFrames = features.reduce((acc, f) => acc + (f.framesAnalysed || 0), 0);
 
   return (
     <div className="glimpse-card p-6">
@@ -202,10 +225,32 @@ function ResultsRecap({ results }: { results: TaskResult[] }) {
       </p>
       <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Stat label="Tasks completed" value={`${completed} / ${results.length}`} />
-        {tapCounts.length ? (
+        <Stat
+          label="Frames analysed"
+          value={totalFrames.toLocaleString()}
+        />
+        {meanSymmetry !== null ? (
           <Stat
-            label="Finger taps captured"
-            value={tapCounts.join(" · ")}
+            label="Facial symmetry"
+            value={`${meanSymmetry.toFixed(1)}%`}
+          />
+        ) : null}
+        {tapFeatures ? (
+          <Stat
+            label="Detected taps"
+            value={String(tapFeatures.tapCount ?? 0)}
+          />
+        ) : null}
+        {audioFeatures?.meanPitchHz ? (
+          <Stat
+            label="Mean pitch"
+            value={`${audioFeatures.meanPitchHz.toFixed(0)} Hz`}
+          />
+        ) : null}
+        {poseFeatures?.postureSwayCm ? (
+          <Stat
+            label="Postural sway"
+            value={`${poseFeatures.postureSwayCm.toFixed(1)} cm`}
           />
         ) : null}
         {stroop ? (

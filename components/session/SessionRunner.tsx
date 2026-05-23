@@ -1,16 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, Eye, Activity, Brain, SkipForward, Pause, Play } from "lucide-react";
+import {
+  Mic,
+  Eye,
+  Activity,
+  Brain,
+  ArrowRight,
+  Pause,
+  Play,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CameraPreview } from "./CameraPreview";
 import { TaskRenderer } from "./TaskRenderer";
 import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
+import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
+import { TaskRecorder } from "@/lib/storage/recorder";
+import {
+  startSession,
+  endSession,
+  uploadTaskVideo,
+  persistTaskFeatures,
+  type SessionRecord,
+} from "@/lib/storage/session-storage";
 
 interface SessionRunnerProps {
   tasks: Task[];
-  onComplete: (results: TaskResult[]) => void;
+  onComplete: (results: TaskResult[], features: TaskFeatures[]) => void;
   onSkipAll?: () => void;
 }
 
@@ -30,6 +48,20 @@ export function SessionRunner({
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
   const [results, setResults] = useState<TaskResult[]>([]);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // Persistent across the whole session
+  const sessionRef = useRef<SessionRecord | null>(null);
+  const sessionStartRef = useRef<number>(Date.now());
+  const featuresRef = useRef<TaskFeatures[]>([]);
+
+  // Per-task lifecycle
+  const extractorRef = useRef<TaskExtractor | null>(null);
+  const recorderRef = useRef<TaskRecorder | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+
+  // For the interaction state stored on each TaskResult
   const startedAtRef = useRef<string>(new Date().toISOString());
   const interactionRef = useRef<Partial<TaskResult>>({});
 
@@ -46,6 +78,74 @@ export function SessionRunner({
     [tasks],
   );
 
+  // Mount: request mediastream + start session once.
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          audio: needsAudio,
+          video: needsVideo ? { facingMode: "user", width: 640, height: 480 } : false,
+        });
+        if (cancelled) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        setStream(s);
+        // Create the hidden video element the extractor reads from.
+        const v = document.createElement("video");
+        v.srcObject = s;
+        v.muted = true;
+        v.playsInline = true;
+        await v.play().catch(() => undefined);
+        videoElRef.current = v;
+        sessionRef.current = await startSession();
+        sessionStartRef.current = Date.now();
+      } catch (e) {
+        setPermissionError(
+          e instanceof Error
+            ? e.message
+            : "Camera and microphone access were denied. The session can still continue without recording.",
+        );
+        sessionRef.current = await startSession();
+        sessionStartRef.current = Date.now();
+      }
+    }
+    init();
+    return () => {
+      cancelled = true;
+      const s = stream;
+      if (s) s.getTracks().forEach((t) => t.stop());
+    };
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Per-task lifecycle: start extractor + recorder when a new task arrives.
+  useEffect(() => {
+    if (!stream || !videoElRef.current || !task) return;
+    const extractor = new TaskExtractor(task, videoElRef.current, stream);
+    extractorRef.current = extractor;
+    extractor.run();
+
+    // Record only when the task actually involves recordable signal.
+    if (
+      task.modality !== "none" &&
+      stream.getTracks().some((t) => t.readyState === "live")
+    ) {
+      const rec = new TaskRecorder({ stream });
+      recorderRef.current = rec;
+      rec.start();
+    } else {
+      recorderRef.current = null;
+    }
+
+    return () => {
+      // Cleanup happens in advance() so we can collect features. No-op here.
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id, stream]);
+
   // Drive the per-task countdown.
   useEffect(() => {
     if (paused || !task) return;
@@ -61,8 +161,27 @@ export function SessionRunner({
   }, [elapsed, paused, task?.id]);
 
   const advance = useCallback(
-    (skipped: boolean) => {
+    async (skipped: boolean) => {
       if (!task) return;
+      // Stop and persist the current task's extractor + recorder.
+      const features = extractorRef.current?.stop();
+      const blob = recorderRef.current
+        ? await recorderRef.current.stop()
+        : null;
+      extractorRef.current = null;
+      recorderRef.current = null;
+
+      if (features) featuresRef.current.push(features);
+
+      if (sessionRef.current) {
+        if (features) {
+          void persistTaskFeatures(sessionRef.current, features);
+        }
+        if (blob && blob.size > 0) {
+          void uploadTaskVideo(sessionRef.current, task.id, blob);
+        }
+      }
+
       const next: TaskResult = {
         taskId: task.id,
         startedAt: startedAtRef.current,
@@ -76,7 +195,9 @@ export function SessionRunner({
       startedAtRef.current = new Date().toISOString();
 
       if (index + 1 >= totalTasks) {
-        onComplete(updated);
+        const dur = Math.round((Date.now() - sessionStartRef.current) / 1000);
+        if (sessionRef.current) await endSession(sessionRef.current, dur);
+        onComplete(updated, [...featuresRef.current]);
         return;
       }
       setIndex((i) => i + 1);
@@ -94,7 +215,6 @@ export function SessionRunner({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Phase + overall progress */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 text-brand-600 px-3 py-1 text-sm font-medium">
@@ -116,7 +236,12 @@ export function SessionRunner({
         />
       </div>
 
-      {/* Main task card */}
+      {permissionError ? (
+        <div className="glimpse-card p-4 bg-warn/10 border-warn/30 text-sm text-ink-muted">
+          {permissionError}
+        </div>
+      ) : null}
+
       <div className="glimpse-card p-6 sm:p-8">
         <div className="flex items-start justify-between gap-6 flex-wrap mb-6">
           <div className="flex-1 min-w-0">
@@ -145,7 +270,6 @@ export function SessionRunner({
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Button
@@ -176,17 +300,26 @@ export function SessionRunner({
           onClick={() => advance(elapsed < task.durationSeconds * 0.5)}
           className="gap-2"
         >
-          {isLast ? "Finish" : "Next"}
-          <SkipForward className="h-4 w-4" />
+          {isLast ? (
+            <>
+              <CheckCircle2 className="h-4 w-4" />
+              Finish baseline
+            </>
+          ) : (
+            <>
+              I&apos;m done
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </Button>
       </div>
 
-      {/* Floating camera preview */}
       {(needsAudio || needsVideo) && (
         <CameraPreview
-          enabled
+          stream={stream}
           audio={needsAudio}
           video={needsVideo}
+          capturing={!paused && !!stream}
           className="fixed bottom-6 right-6 w-44 h-32 sm:w-56 sm:h-40 z-30"
         />
       )}

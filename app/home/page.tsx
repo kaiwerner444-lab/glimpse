@@ -10,6 +10,7 @@ import { StreakBadge } from "@/components/dashboard/StreakBadge";
 import { SessionPrompt } from "@/components/dashboard/SessionPrompt";
 import { LearningPath } from "@/components/dashboard/LearningPath";
 import { FeedbackModule } from "@/components/dashboard/FeedbackModule";
+import { ShareModule } from "@/components/dashboard/ShareModule";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
 
@@ -101,6 +102,13 @@ export default function Home() {
         >
           <LearningPath daysSinceStart={Math.max(daysSinceStart, 4)} />
           <FeedbackModule />
+        </div>
+
+        <div
+          className="animate-stagger-up"
+          style={{ animationDelay: "420ms" }}
+        >
+          <ShareModule />
         </div>
 
         <div
