@@ -16,6 +16,8 @@ import { CameraPreview } from "./CameraPreview";
 import { TaskRenderer } from "./TaskRenderer";
 import { ReactionProvider } from "./Reactions";
 import { SessionSignalsProvider, useSessionSignals } from "./SessionSignals";
+import { useComfort } from "@/lib/preferences/useComfort";
+import { COMFORT_TUNING } from "@/lib/preferences/comfort";
 import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
 import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
@@ -52,11 +54,36 @@ export function SessionRunner(props: SessionRunnerProps) {
 }
 
 function SessionRunnerInner({
-  tasks,
+  tasks: rawTasks,
   onComplete,
   onSkipAll,
 }: SessionRunnerProps) {
   const { publishTap, resetSignals } = useSessionSignals();
+  const { enabled: comfort } = useComfort();
+  // Stretch task durations in comfort mode so older or more anxious users
+  // have generous reading + response time. Digit span gets explicit
+  // memorise/recall boosts since shorter windows are the main pain point.
+  const tasks = useMemo(() => {
+    if (!comfort) return rawTasks;
+    return rawTasks.map((t) => {
+      const stretched = {
+        ...t,
+        durationSeconds: Math.round(
+          t.durationSeconds * COMFORT_TUNING.taskDurationMultiplier,
+        ),
+      };
+      if (t.kind === "digit_span") {
+        return {
+          ...stretched,
+          memorizeSeconds:
+            (t.memorizeSeconds ?? 5) + COMFORT_TUNING.digitSpanMemoriseBoostSeconds,
+          recallSeconds:
+            (t.recallSeconds ?? 8) + COMFORT_TUNING.digitSpanRecallBoostSeconds,
+        };
+      }
+      return stretched;
+    });
+  }, [rawTasks, comfort]);
   const [index, setIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);

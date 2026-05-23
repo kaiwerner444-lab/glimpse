@@ -21,6 +21,14 @@ import {
 import { RadioGroup } from "@/components/ui/RadioGroup";
 import { saveOnboarding } from "@/lib/db/mock-db";
 import type { GlassesMode } from "@/lib/types";
+import {
+  loadComfort,
+  saveComfort,
+  resolveComfort,
+  type ComfortPreference,
+} from "@/lib/preferences/comfort";
+import { broadcastComfortChange } from "@/lib/preferences/useComfort";
+import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -39,6 +47,19 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [editingHardware, setEditingHardware] = useState(false);
   const [draftMode, setDraftMode] = useState<GlassesMode | null>(null);
+  const [comfortPref, setComfortPref] = useState<ComfortPreference>("auto");
+
+  useEffect(() => {
+    setComfortPref(loadComfort());
+  }, []);
+
+  const comfortEffective = state ? resolveComfort(comfortPref, state.account) : false;
+
+  const onComfortChange = (next: ComfortPreference) => {
+    setComfortPref(next);
+    saveComfort(next);
+    broadcastComfortChange();
+  };
 
   const saveHardware = (mode: GlassesMode) => {
     if (!state) return;
@@ -308,6 +329,58 @@ export default function SettingsPage() {
             label="Send me a gentle morning reminder"
             hint="One notification a day, around your usual session time. Never more than that."
           />
+        </SettingsSection>
+
+        {/* Comfort mode */}
+        <SettingsSection
+          icon={<User className="h-5 w-5" />}
+          title="Pace & density"
+          subtitle="Lighter pacing and larger touch targets when you want them."
+          delay={160}
+        >
+          <p className="text-sm text-ink-muted mb-4 leading-relaxed">
+            Comfort mode lengthens each task by ~40%, gives you more time to
+            memorise and recall, and slows transitions. We default it on for
+            users 60 and up — change it anytime here.
+            {state?.account && comfortPref === "auto" ? (
+              <span className="ml-1 text-ink">
+                Right now it's <span className="font-semibold">
+                  {comfortEffective ? "on" : "off"}
+                </span> based on your date of birth.
+              </span>
+            ) : null}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {(["auto", "on", "off"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onComfortChange(opt)}
+                aria-pressed={comfortPref === opt}
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-left transition",
+                  comfortPref === opt
+                    ? "border-brand-500 bg-brand-50"
+                    : "border-black/10 bg-surface hover:border-black/25",
+                )}
+              >
+                <p className="text-sm font-semibold text-ink">
+                  {opt === "auto"
+                    ? "Adapt to my age"
+                    : opt === "on"
+                      ? "Always on"
+                      : "Always off"}
+                </p>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  {opt === "auto"
+                    ? "On for 60+, off below."
+                    : opt === "on"
+                      ? "Lighter, longer windows."
+                      : "Full pace and density."}
+                </p>
+              </button>
+            ))}
+          </div>
         </SettingsSection>
 
         {/* Privacy & data */}

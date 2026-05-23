@@ -43,7 +43,22 @@ export type Task =
       minLength?: number;
       maxLength?: number;
     })
-  | (BaseTask & { kind: "stroop"; trials: StroopTrial[] });
+  | (BaseTask & { kind: "stroop"; trials: StroopTrial[] })
+  | (BaseTask & {
+      // Diadochokinesis — rapid syllable repetition. Gold-standard speech
+      // motor assessment, sensitive to dysarthria across PD, ALS and MS.
+      // Standard syllables: "pa", "ta", "ka" or the trio "pa-ta-ka".
+      kind: "diadochokinesis";
+      syllable: "pa" | "ta" | "ka" | "pa-ta-ka";
+    })
+  | (BaseTask & {
+      // Trail Making B-style sequencing. Standard executive-function /
+      // processing-speed measure; the alternating variant is sensitive
+      // to early MCI / Alzheimer's. We render numbered targets at random
+      // positions; the user taps them in ascending order.
+      kind: "trail_making";
+      count: number;
+    });
 
 export interface TaskResult {
   taskId: string;
@@ -55,4 +70,8 @@ export interface TaskResult {
   digitSpanAnswer?: string;
   stroopCorrect?: number;
   stroopTotal?: number;
+  // Trail Making — time in seconds to complete the full sequence, and
+  // count of tap errors (taps on the wrong next number).
+  trailCompletionSeconds?: number;
+  trailErrors?: number;
 }

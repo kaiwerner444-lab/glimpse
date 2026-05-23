@@ -51,6 +51,21 @@ export const BASELINE_TASKS: Task[] = [
     durationSeconds: 60,
     modality: "audio",
   },
+  {
+    // Diadochokinesis — classic speech-motor probe in MDS-UPDRS III item 3.4,
+    // the ALS-FRS, and standard MS speech assessments. Picks up motor speech
+    // changes (rate, regularity, articulation breakdown) well before they
+    // become socially noticeable.
+    kind: "diadochokinesis",
+    id: "speech-ddk",
+    phase: "speech",
+    title: "Say 'Pa-Ta-Ka' as fast as you can",
+    instruction:
+      "Repeat the three syllables cleanly and rapidly. We're listening for steadiness, not loudness.",
+    syllable: "pa-ta-ka",
+    durationSeconds: 20,
+    modality: "audio",
+  },
 
   // ─── VISUAL & FACIAL (~3 min) ───────────────────────────────────────
   {
@@ -214,6 +229,21 @@ export const BASELINE_TASKS: Task[] = [
       { word: "GREEN", color: "blue" },
       { word: "YELLOW", color: "blue" },
     ],
+  },
+  {
+    // Trail Making B-style sequencing. Reitan 1958 et seq; particularly
+    // sensitive to early executive-function decline (MCI, Alzheimer's,
+    // vascular cognitive impairment). Time-to-completion and error rate
+    // are the captured features.
+    kind: "trail_making",
+    id: "cognitive-trails",
+    phase: "cognitive",
+    title: "Tap the numbers in order",
+    instruction:
+      "Tap 1, then 2, then 3, and keep going. Speed matters but accuracy matters more.",
+    count: 10,
+    durationSeconds: 60,
+    modality: "none",
   },
   {
     kind: "instruction",

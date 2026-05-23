@@ -58,6 +58,12 @@ export function TaskRenderer({
       return (
         <StroopTask trials={task.trials} onUpdate={onInteractionUpdate} />
       );
+    case "diadochokinesis":
+      return <DiadochokinesisTask syllable={task.syllable} />;
+    case "trail_making":
+      return (
+        <TrailMakingTask count={task.count} onUpdate={onInteractionUpdate} />
+      );
   }
 }
 
@@ -469,6 +475,163 @@ function PhaseTimer({
       </p>
     </div>
   );
+}
+
+// ─── Diadochokinesis ─────────────────────────────────────────────────
+// Rapid syllable repetition. Standard speech-motor assessment used in
+// clinic for decades — Fletcher 1972 documented the population norms;
+// the test remains in MDS-UPDRS Part III (item 3.4 in the motor exam),
+// is used in the ALS Functional Rating Scale, and is sensitive to MS.
+// A typical 5-second trial of "pa" should yield ~6.0–7.0 reps/s in
+// healthy adults; lower counts and irregularity flag motor speech issues.
+
+function DiadochokinesisTask({
+  syllable,
+}: {
+  syllable: "pa" | "ta" | "ka" | "pa-ta-ka";
+}) {
+  const label = syllable === "pa-ta-ka" ? "PA — TA — KA" : syllable.toUpperCase();
+  return (
+    <div className="text-center py-6">
+      <p className="text-sm uppercase tracking-wider text-ink-muted mb-3">
+        Say this as fast as you can, clearly
+      </p>
+      <p className="text-5xl sm:text-7xl font-extrabold tracking-widest text-brand-500 select-none">
+        {label}
+      </p>
+      <p className="mt-5 text-sm text-ink-muted max-w-md mx-auto leading-relaxed">
+        Repeat the syllable cleanly and rapidly until the timer ends.
+        We're listening for rate and clarity, not volume.
+      </p>
+    </div>
+  );
+}
+
+// ─── Trail Making B-style ────────────────────────────────────────────
+// Reitan 1958 — Trail Making A (numbers only) and B (alternating
+// numbers + letters) remain widely used measures of executive function
+// and processing speed; B is particularly sensitive to early MCI and
+// Alzheimer's. We render numbered targets at fixed-but-scrambled
+// positions; the user taps them in ascending order. Time to completion
+// and error rate are the captured features.
+
+function TrailMakingTask({
+  count,
+  onUpdate,
+}: {
+  count: number;
+  onUpdate?: (patch: Partial<TaskResult>) => void;
+}) {
+  const { push } = useReactions();
+  const [nextTarget, setNextTarget] = useState(1);
+  const [errors, setErrors] = useState(0);
+  const [completedAt, setCompletedAt] = useState<number | null>(null);
+  const startedRef = useRef<number>(Date.now());
+
+  // Stable scrambled layout per task run. 4 cols x rows for ~10 targets.
+  const positions = useMemo(() => {
+    const seed = count * 7 + 13;
+    const indices = Array.from({ length: count }, (_, i) => i);
+    // Fisher-Yates with deterministic-ish RNG so we don't re-shuffle on every render.
+    const rng = mulberry32(seed);
+    for (let i = indices.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(rng() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    const cols = Math.ceil(Math.sqrt(count) * 1.3);
+    const rows = Math.ceil(count / cols);
+    return indices.map((slot, n) => {
+      const r = Math.floor(slot / cols);
+      const c = slot % cols;
+      const jitterX = ((rng() - 0.5) * 14) | 0;
+      const jitterY = ((rng() - 0.5) * 10) | 0;
+      return {
+        num: n + 1,
+        // Percent positions inside the play area.
+        x: ((c + 0.5) / cols) * 100 + jitterX * 0.4,
+        y: ((r + 0.5) / rows) * 100 + jitterY * 0.4,
+      };
+    });
+  }, [count]);
+
+  const handleTap = (num: number) => {
+    if (completedAt !== null) return;
+    if (num === nextTarget) {
+      if (num === count) {
+        const elapsed = (Date.now() - startedRef.current) / 1000;
+        setCompletedAt(elapsed);
+        onUpdate?.({
+          trailCompletionSeconds: Math.round(elapsed * 10) / 10,
+          trailErrors: errors,
+        });
+        push({
+          text: errors === 0 ? "Clean sweep" : "Got there",
+          tone: errors === 0 ? "success" : "neutral",
+          emoji: errors === 0 ? "check" : "sparkle",
+        });
+      }
+      setNextTarget((n) => n + 1);
+    } else {
+      setErrors((e) => e + 1);
+      push({ text: "Not quite — try the next number", tone: "gentle", emoji: "heart" });
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2 w-full">
+      <p className="text-sm uppercase tracking-wider text-ink-muted">
+        Tap the numbers in order, starting from 1
+      </p>
+      <div className="relative w-full max-w-xl aspect-[5/3] rounded-2xl bg-surface-alt border border-black/[0.06]">
+        {positions.map((p) => {
+          const done = p.num < nextTarget;
+          const isNext = p.num === nextTarget && completedAt === null;
+          return (
+            <button
+              key={p.num}
+              type="button"
+              onClick={() => handleTap(p.num)}
+              disabled={done}
+              className={cn(
+                "absolute -translate-x-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 rounded-full font-semibold text-sm sm:text-base flex items-center justify-center transition tabular-nums shadow-card",
+                done
+                  ? "bg-success/15 text-success border border-success/40"
+                  : isNext
+                    ? "bg-brand-500 text-white scale-105 ring-2 ring-brand-500/30"
+                    : "bg-surface text-ink border border-black/10 hover:border-black/30",
+              )}
+              style={{ left: `${p.x}%`, top: `${p.y}%` }}
+              aria-label={`Number ${p.num}`}
+            >
+              {p.num}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-sm text-ink-muted">
+        Next: <span className="font-semibold text-ink tabular-nums">{Math.min(nextTarget, count)}</span>
+        <span className="mx-2 text-ink-subtle">·</span>
+        Errors: <span className="font-semibold text-ink tabular-nums">{errors}</span>
+        {completedAt !== null ? (
+          <>
+            <span className="mx-2 text-ink-subtle">·</span>
+            Completed in <span className="font-semibold text-ink tabular-nums">{completedAt.toFixed(1)}s</span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
+// Tiny seeded RNG for the trail-making layout. Same algorithm as the
+// dashboard synth data, inlined to keep the file self-contained.
+function mulberry32(a: number) {
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function hammingClose(a: string, b: string): boolean {
