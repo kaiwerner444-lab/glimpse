@@ -115,7 +115,7 @@ export default function Home() {
               </h2>
             </div>
             <Link
-              href="#"
+              href="/reports"
               className="text-sm font-medium text-brand-500 hover:text-brand-600 inline-flex items-center gap-1"
             >
               View full report
@@ -168,13 +168,13 @@ export default function Home() {
           style={{ animationDelay: "560ms" }}
         >
           <QuickLink
-            href="#"
+            href="/reports"
             icon={<FileText className="h-5 w-5" />}
             title="Reports"
             body="Weekly trends and monthly summaries you can share with a clinician."
           />
           <QuickLink
-            href="#"
+            href="/home#share"
             icon={<Users className="h-5 w-5" />}
             title="Family access"
             body="Share a read-only view with up to three trusted people."

@@ -97,6 +97,32 @@ function mulberry32(a: number) {
   };
 }
 
+// Longer 30-day version used by the full report page. Same base values
+// and trend directions; just more points so the trends are visible across
+// the longer window.
+export function buildLongSignalSeries(
+  seed = 0,
+  days = 30,
+): SignalSeries[] {
+  Math.random = mulberry32(seed || 84);
+  const base = buildSignalSeries(0);
+  return base.map((s) => ({
+    ...s,
+    points: jitter(s.baseline, 5, days, slopeFor(s.direction)),
+  }));
+}
+
+function slopeFor(d: SignalSeries["direction"]): number {
+  switch (d) {
+    case "improving":
+      return 0.18;
+    case "watch":
+      return -0.15;
+    case "stable":
+      return 0.02;
+  }
+}
+
 export function percentChange(points: number[]): number {
   if (points.length < 2) return 0;
   const first = points[0];
