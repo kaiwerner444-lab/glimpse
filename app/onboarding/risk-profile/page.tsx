@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info } from "lucide-react";
+import { Info, Plus, Check } from "lucide-react";
 import { StepShell } from "@/components/onboarding/StepShell";
 import { Button } from "@/components/ui/Button";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
@@ -72,7 +72,7 @@ export default function RiskProfileStep() {
       step="risk-profile"
       eyebrow="Your screening focus"
       title="Here's what we'd watch for, based on what you shared"
-      description="These are signals worth keeping an eye on — not diagnoses. Confirm the ones you want included in your daily ritual. You can change this anytime."
+      description="These are signals worth keeping an eye on — not diagnoses. Tap Add on the ones you want included in your daily five-minute session. You can change this anytime."
       footer={
         <>
           <Button
@@ -164,14 +164,29 @@ function RiskRow({
           type="button"
           onClick={onToggle}
           aria-pressed={confirmed}
-          className={cn(
-            "shrink-0 rounded-xl px-4 h-10 text-sm font-medium transition border",
+          aria-label={
             confirmed
-              ? "bg-brand-500 text-white border-brand-500"
+              ? `Remove ${CONDITION_LABELS[score.condition]} from your daily screening`
+              : `Add ${CONDITION_LABELS[score.condition]} to your daily screening`
+          }
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1.5 rounded-xl px-4 h-10 text-sm font-medium transition border",
+            confirmed
+              ? "bg-brand-500 text-white border-brand-500 hover:bg-brand-600"
               : "bg-surface text-ink border-black/15 hover:border-black/30",
           )}
         >
-          {confirmed ? "Tracking" : "Track"}
+          {confirmed ? (
+            <>
+              <Check className="h-4 w-4" strokeWidth={2.5} />
+              Added
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              Add
+            </>
+          )}
         </button>
       </div>
 
