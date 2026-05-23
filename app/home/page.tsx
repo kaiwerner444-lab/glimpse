@@ -16,6 +16,7 @@ import { WeeklyChallenge } from "@/components/dashboard/WeeklyChallenge";
 import { AchievementsGrid } from "@/components/dashboard/AchievementsGrid";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { AccountMenu } from "@/components/dashboard/AccountMenu";
+import { HabitAndFreeze } from "@/components/dashboard/HabitAndFreeze";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
@@ -158,6 +159,13 @@ export default function Home() {
         <div
           className="animate-stagger-up"
           style={{ animationDelay: "440ms" }}
+        >
+          <HabitAndFreeze />
+        </div>
+
+        <div
+          className="animate-stagger-up"
+          style={{ animationDelay: "480ms" }}
         >
           <AchievementsGrid unlockedIds={game.achievements} />
         </div>

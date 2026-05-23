@@ -45,6 +45,12 @@ export function xpForSession(streakAfter: number): number {
   return SESSION_BASE_XP + bonus;
 }
 
+export const FREEZES_PER_MONTH = 2;
+
+function currentMonthKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+}
+
 export function emptyState(): GamificationState {
   return {
     xp: 0,
@@ -54,6 +60,22 @@ export function emptyState(): GamificationState {
     lastSessionAt: null,
     achievements: [],
     weeklyChallengeProgress: 0,
+    streakFreezesAvailable: FREEZES_PER_MONTH,
+    streakFreezesUsedThisMonth: 0,
+    streakFreezeMonth: currentMonthKey(),
+    habitAnchor: null,
+  };
+}
+
+// Refresh the freeze pool on the 1st of each month.
+export function withFreshFreezes(state: GamificationState): GamificationState {
+  const month = currentMonthKey();
+  if (state.streakFreezeMonth === month) return state;
+  return {
+    ...state,
+    streakFreezeMonth: month,
+    streakFreezesUsedThisMonth: 0,
+    streakFreezesAvailable: FREEZES_PER_MONTH,
   };
 }
 
@@ -105,6 +127,7 @@ export function recordSession(
     : 1;
 
   const next: GamificationState = {
+    ...prev,
     xp: prev.xp + xpEarned,
     totalSessions,
     currentStreak: streak,

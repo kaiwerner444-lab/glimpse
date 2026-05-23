@@ -58,6 +58,16 @@ export type Task =
       // positions; the user taps them in ascending order.
       kind: "trail_making";
       count: number;
+    })
+  | (BaseTask & {
+      // Spiral drawing — validated Parkinson's tremor measure
+      // (Pullman 1998; many follow-ups). The user traces an Archimedean
+      // spiral; mean deviation from the template and high-frequency
+      // micromovement reveal PD-style tremor and dysmetria. The
+      // template is rendered as a guide; the user-drawn path is
+      // captured and scored client-side.
+      kind: "spiral_drawing";
+      turns: number;
     });
 
 export interface TaskResult {
@@ -74,4 +84,9 @@ export interface TaskResult {
   // count of tap errors (taps on the wrong next number).
   trailCompletionSeconds?: number;
   trailErrors?: number;
+  // Spiral drawing — mean deviation from the template path (smaller is
+  // smoother) and high-frequency micromovement variance (a proxy for
+  // tremor: higher = more shake).
+  spiralMeanDeviation?: number;
+  spiralTremorVariance?: number;
 }

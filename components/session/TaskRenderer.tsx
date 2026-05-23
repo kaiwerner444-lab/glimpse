@@ -64,6 +64,13 @@ export function TaskRenderer({
       return (
         <TrailMakingTask count={task.count} onUpdate={onInteractionUpdate} />
       );
+    case "spiral_drawing":
+      return (
+        <SpiralDrawingTask
+          turns={task.turns}
+          onUpdate={onInteractionUpdate}
+        />
+      );
   }
 }
 
@@ -618,6 +625,190 @@ function TrailMakingTask({
             Completed in <span className="font-semibold text-ink tabular-nums">{completedAt.toFixed(1)}s</span>
           </>
         ) : null}
+      </p>
+    </div>
+  );
+}
+
+// ─── Spiral Drawing ───────────────────────────────────────────────────
+// Archimedean spiral template + freehand tracing. Pullman 1998 first
+// validated quantitative spiral analysis as a Parkinson's tremor measure
+// (Movement Disorders journal); the test has been used in dozens of
+// studies since for PD severity tracking, deep brain stimulation
+// titration, and essential tremor differential. We compute two features
+// from the user's drawn path:
+//   - spiralMeanDeviation: average radial distance from the template
+//     spiral, normalised by canvas size. Higher = more dysmetria.
+//   - spiralTremorVariance: variance of the first-differenced position
+//     samples, a proxy for high-frequency micromovement.
+
+function SpiralDrawingTask({
+  turns,
+  onUpdate,
+}: {
+  turns: number;
+  onUpdate?: (patch: Partial<TaskResult>) => void;
+}) {
+  const { push } = useReactions();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+  const pathRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
+  const [completed, setCompleted] = useState(false);
+
+  const SIZE = 320;
+  const CENTER = SIZE / 2;
+  const MAX_R = CENTER - 18;
+
+  // Archimedean spiral: r = a * θ. Tuned so the outer edge sits near MAX_R.
+  const spiralRadiusAt = (theta: number) =>
+    (MAX_R / (turns * 2 * Math.PI)) * theta;
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    // Template spiral (light, dashed)
+    ctx.strokeStyle = "#CCD5D6";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    for (let theta = 0; theta <= turns * 2 * Math.PI; theta += 0.05) {
+      const r = spiralRadiusAt(theta);
+      const x = CENTER + r * Math.cos(theta);
+      const y = CENTER + r * Math.sin(theta);
+      if (theta === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Start dot
+    ctx.fillStyle = "#00707E";
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }, [turns]);
+
+  const getPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current;
+    if (!c) return null;
+    const rect = c.getBoundingClientRect();
+    const scaleX = c.width / rect.width;
+    const scaleY = c.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+      t: performance.now(),
+    };
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (completed) return;
+    drawingRef.current = true;
+    pathRef.current = [];
+    const p = getPoint(e);
+    if (p) pathRef.current.push(p);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current || completed) return;
+    const p = getPoint(e);
+    if (!p) return;
+    pathRef.current.push(p);
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.strokeStyle = "#00707E";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    const prev = pathRef.current[pathRef.current.length - 2];
+    if (!prev) return;
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const onPointerUp = () => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    score();
+  };
+
+  const score = () => {
+    const path = pathRef.current;
+    if (path.length < 10) return;
+
+    // For each captured point, find the closest point on the template
+    // spiral (sampled densely) and accumulate that distance.
+    const samples: Array<{ x: number; y: number }> = [];
+    for (let theta = 0; theta <= turns * 2 * Math.PI; theta += 0.03) {
+      const r = spiralRadiusAt(theta);
+      samples.push({
+        x: CENTER + r * Math.cos(theta),
+        y: CENTER + r * Math.sin(theta),
+      });
+    }
+
+    let devSum = 0;
+    for (const p of path) {
+      let best = Number.POSITIVE_INFINITY;
+      for (const s of samples) {
+        const dx = p.x - s.x;
+        const dy = p.y - s.y;
+        const d = dx * dx + dy * dy;
+        if (d < best) best = d;
+      }
+      devSum += Math.sqrt(best);
+    }
+    const meanDeviation = devSum / path.length / MAX_R;
+
+    // Tremor variance: variance of frame-to-frame deltas.
+    const deltas: number[] = [];
+    for (let i = 1; i < path.length; i += 1) {
+      const dx = path[i].x - path[i - 1].x;
+      const dy = path[i].y - path[i - 1].y;
+      deltas.push(Math.sqrt(dx * dx + dy * dy));
+    }
+    const meanDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length || 0;
+    const variance =
+      deltas.reduce((acc, v) => acc + (v - meanDelta) ** 2, 0) /
+        deltas.length || 0;
+
+    onUpdate?.({
+      spiralMeanDeviation: Math.round(meanDeviation * 1000) / 1000,
+      spiralTremorVariance: Math.round(variance * 100) / 100,
+    });
+    setCompleted(true);
+    push({
+      text: "Spiral captured",
+      tone: meanDeviation < 0.05 ? "success" : "neutral",
+      emoji: "check",
+    });
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-2">
+      <p className="text-sm uppercase tracking-wider text-ink-muted">
+        Trace the dotted spiral from the centre outward
+      </p>
+      <canvas
+        ref={canvasRef}
+        width={SIZE}
+        height={SIZE}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className={cn(
+          "rounded-2xl bg-surface border border-black/10 touch-none",
+          completed ? "opacity-90" : "cursor-crosshair",
+        )}
+      />
+      <p className="text-sm text-ink-muted">
+        {completed
+          ? "Done — your spiral is stored for tomorrow's comparison"
+          : "Steady is fine. Stop when the spiral fills the circle."}
       </p>
     </div>
   );

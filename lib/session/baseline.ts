@@ -172,6 +172,20 @@ export const BASELINE_TASKS: Task[] = [
     durationSeconds: 30,
     modality: "video",
   },
+  {
+    // Spiral drawing — validated PD tremor measure since Pullman 1998.
+    // Captures mean deviation from an Archimedean template and tremor
+    // variance from the frame-to-frame deltas.
+    kind: "spiral_drawing",
+    id: "movement-spiral",
+    phase: "movement",
+    title: "Trace the spiral",
+    instruction:
+      "Use your finger (or mouse) to trace the dotted spiral from the centre outward. Take it at a calm pace.",
+    turns: 3,
+    durationSeconds: 30,
+    modality: "none",
+  },
 
   // ─── COGNITIVE (~4 min) ─────────────────────────────────────────────
   {
