@@ -25,19 +25,32 @@ const config: Config = {
           400: "#33A9B0",
           500: "#00707E", // primary
           600: "#005A66",
-          700: "#00444D",
+          700: "#004E58", // editorial brand teal dark
           800: "#002F35",
           900: "#001A1D",
         },
+        // Editorial medical instrument tokens. ink scale follows the spec:
+        // 0E1413 / 4A4842 / 8B8880. Aliased on ink.DEFAULT/muted/subtle so
+        // the existing utilities continue to work.
         ink: {
-          DEFAULT: "#0F1F22",
-          muted: "#566366",
-          subtle: "#8A9497",
+          DEFAULT: "#0E1413",
+          muted: "#4A4842",
+          subtle: "#8B8880",
         },
+        // Paper-feel surfaces. FAF8F4 is the warm off-white background;
+        // F3EFE7 is the slightly-darker paper used for the instrument
+        // panels. Never stark white.
         surface: {
-          DEFAULT: "#FFFFFF",
-          alt: "#F6F8F8",
+          DEFAULT: "#FAF8F4",
+          alt: "#FAF8F4",
+          paper: "#F3EFE7",
           warm: "#FBFAF6",
+        },
+        // Hairline rules instead of borders. .08 for default, .18 for
+        // emphasised hairlines.
+        hairline: {
+          DEFAULT: "rgba(14, 20, 19, 0.08)",
+          strong: "rgba(14, 20, 19, 0.18)",
         },
         // Reserved exclusively for Tier 3 specialist referral flags.
         alert: "#C0392B",
@@ -62,13 +75,22 @@ const config: Config = {
           "Segoe UI",
           "sans-serif",
         ],
-        // Display = same Inter; we just push size, weight, and tracking.
-        // No italic, no serif. Linear-style confidence.
+        // Display headlines + numerical proof. Instrument Serif at
+        // weight 400, italic available in brand teal for emphasis.
         display: [
-          "var(--font-sans)",
-          "ui-sans-serif",
-          "system-ui",
-          "sans-serif",
+          "var(--font-display)",
+          "ui-serif",
+          "Georgia",
+          "serif",
+        ],
+        // Technical labels / numbers / monospace eyebrows. JetBrains
+        // Mono at 10-11px uppercase, +0.14em tracking.
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace",
         ],
       },
       fontSize: {
@@ -149,6 +171,26 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(24px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Choreographed hero entrance — vertical lift + fade.
+        "hero-rise": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // Instrument panel slides in from the right (translateX 24px → 0).
+        "hero-instrument": {
+          "0%": { opacity: "0", transform: "translateX(24px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        // Slow continuous breathing on the waveform's envelope.
+        breathe: {
+          "0%, 100%": { transform: "scaleY(0.96)" },
+          "50%": { transform: "scaleY(1.06)" },
+        },
+        // Live capture indicator pulse.
+        "capture-pulse": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.5", transform: "scale(0.92)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease-out both",
@@ -164,6 +206,12 @@ const config: Config = {
         "mesh-drift-b": "mesh-drift-b 28s ease-in-out infinite",
         "mesh-drift-c": "mesh-drift-c 34s ease-in-out infinite",
         "subtle-rise": "subtle-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
+        // Brief-defined choreography for the hero.
+        "hero-rise": "hero-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        "hero-instrument":
+          "hero-instrument 800ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        breathe: "breathe 4.5s ease-in-out infinite",
+        "capture-pulse": "capture-pulse 1.6s ease-in-out infinite",
       },
     },
   },
