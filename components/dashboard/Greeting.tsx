@@ -45,19 +45,25 @@ export function Greeting({ name }: GreetingProps) {
   const supportLine = SUPPORT_LINES[daySeed % SUPPORT_LINES.length];
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-50 via-surface to-sunrise-50 px-6 py-8 sm:px-10 sm:py-12 animate-stagger-up">
-      <div className="absolute -right-12 -top-12 opacity-90 pointer-events-none">
-        <GlimpseEye size={260} />
+    <section className="relative overflow-hidden rounded-3xl px-6 py-10 sm:px-12 sm:py-14 animate-subtle-rise">
+      {/* Layered mesh background */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute -top-32 -left-20 h-[420px] w-[420px] rounded-full bg-[radial-gradient(closest-side,_#99D4D7_0%,_transparent_72%)] opacity-70 animate-mesh-drift-a" />
+        <div className="absolute -bottom-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-[radial-gradient(closest-side,_#FFDDA9_0%,_transparent_70%)] opacity-60 animate-mesh-drift-b" />
+        <div className="absolute inset-0 bg-gradient-to-br from-surface/40 via-transparent to-surface/40" />
+      </div>
+      <div className="absolute right-2 top-2 sm:right-6 sm:top-6 opacity-95 pointer-events-none">
+        <GlimpseEye size={220} />
       </div>
       <div className="relative max-w-2xl">
-        <p className="text-sm font-medium uppercase tracking-wider text-brand-500 mb-2">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-3">
           {formatDate(now)}
         </p>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-ink leading-tight">
+        <h1 className="glimpse-display text-4xl sm:text-5xl lg:text-6xl text-ink">
           {opener}
-          {name ? `, ${name}` : ""}.
+          {name ? <>, <em className="not-italic text-brand-500">{name}</em></> : ""}.
         </h1>
-        <p className="mt-3 text-lg text-ink-muted max-w-xl leading-relaxed">
+        <p className="mt-4 text-lg sm:text-xl text-ink-muted max-w-xl leading-relaxed italic">
           {supportLine}
         </p>
       </div>

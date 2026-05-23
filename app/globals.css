@@ -10,28 +10,79 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-surface-alt text-ink text-base;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-surface-alt text-ink text-base font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
 
   h1, h2, h3, h4 {
     @apply text-ink tracking-tight;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
+
+  /* Display headings (hero "moment" lines) lean on the serif. Use the
+     .glimpse-display utility instead of styling every h1. */
 
   :focus-visible {
     @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-alt;
+  }
+
+  /* Smooth scroll for anchor links + page transitions. Respects reduced
+     motion automatically. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  ::selection {
+    @apply bg-brand-500/20 text-ink;
   }
 }
 
 @layer components {
   .glimpse-card {
-    @apply bg-surface rounded-2xl shadow-card border border-black/5;
+    @apply bg-surface rounded-2xl shadow-card border border-black/[0.04];
   }
 
   .glimpse-divider {
     @apply h-px bg-black/[0.06] w-full;
+  }
+
+  /* Display style — used for landing hero and signature dashboard moments. */
+  .glimpse-display {
+    font-family: var(--font-display), Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+  }
+
+  /* Refined glass card with backdrop blur. For elevated surfaces. */
+  .glimpse-glass {
+    @apply rounded-2xl border border-white/40 bg-surface/70 backdrop-blur-xl shadow-glass;
+  }
+
+  /* Subtle inner highlight on premium cards. */
+  .glimpse-card-elevated {
+    @apply rounded-2xl border border-black/[0.04] bg-surface shadow-elevated;
+    background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.6) 0%,
+      transparent 16%
+    );
+    background-blend-mode: overlay;
+  }
+}
+
+/* Print-friendly tweaks for the reports page. */
+@media print {
+  body {
+    background: white;
+  }
+  .print\:hidden {
+    display: none !important;
   }
 }

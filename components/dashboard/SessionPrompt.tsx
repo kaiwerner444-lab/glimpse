@@ -24,22 +24,23 @@ export function SessionPrompt({
   const router = useRouter();
 
   return (
-    <div className="relative overflow-hidden glimpse-card p-6 sm:p-7">
-      <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-50 blur-3xl pointer-events-none" />
+    <div className="relative overflow-hidden glimpse-card-elevated p-6 sm:p-8">
+      <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,_#CCEAEB,_transparent_72%)] opacity-80 pointer-events-none" />
+      <div className="absolute -left-12 -bottom-12 h-44 w-44 rounded-full bg-[radial-gradient(closest-side,_#FFEFD7,_transparent_72%)] opacity-70 pointer-events-none" />
       <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
-        <div className="h-14 w-14 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0 shadow-card">
+        <div className="h-14 w-14 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0 shadow-elevated">
           <Sunrise className="h-7 w-7" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium uppercase tracking-wider text-brand-500">
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600">
             Today&apos;s ritual
           </p>
-          <h2 className="text-2xl font-semibold text-ink leading-tight mt-1">
+          <h2 className="glimpse-display text-3xl sm:text-4xl text-ink mt-1">
             {available
               ? "Five minutes, when you're ready"
               : "Your next session"}
           </h2>
-          <p className="mt-1.5 text-base text-ink-muted">
+          <p className="mt-2.5 text-base text-ink-muted">
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
               {scheduledLabel}
@@ -52,9 +53,8 @@ export function SessionPrompt({
           {available ? (
             <Button
               size="lg"
-              className="gap-2"
+              className="gap-2 shadow-elevated"
               onClick={() => router.push(href)}
-              // Also pre-fetch the route on hover so the transition is instant.
               onMouseEnter={() => router.prefetch(href)}
             >
               <Play className="h-4 w-4" />

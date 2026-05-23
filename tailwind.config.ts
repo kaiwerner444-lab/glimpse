@@ -55,12 +55,18 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          "var(--font-sans)",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
           "Segoe UI",
-          "Inter",
           "sans-serif",
+        ],
+        display: [
+          "var(--font-display)",
+          "ui-serif",
+          "Georgia",
+          "serif",
         ],
         serif: ["ui-serif", "Georgia", "Cambria", "serif"],
       },
@@ -75,7 +81,16 @@ const config: Config = {
       },
       boxShadow: {
         card: "0 1px 2px rgba(15, 31, 34, 0.04), 0 8px 24px rgba(15, 31, 34, 0.06)",
+        // Premium two-layer shadow used on hero CTAs and elevated cards.
+        elevated:
+          "0 1px 2px rgba(15, 31, 34, 0.04), 0 12px 32px -8px rgba(0, 112, 126, 0.18), 0 32px 80px -16px rgba(15, 31, 34, 0.12)",
+        glass:
+          "0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 2px rgba(15, 31, 34, 0.04), 0 24px 64px -16px rgba(0, 112, 126, 0.15)",
         focus: "0 0 0 3px rgba(0, 112, 126, 0.25)",
+        ring: "0 0 0 1px rgba(0, 112, 126, 0.15)",
+      },
+      backdropBlur: {
+        xs: "2px",
       },
       keyframes: {
         "fade-up": {
@@ -117,6 +132,22 @@ const config: Config = {
           "30%": { opacity: "1", transform: "scale(1.1) rotate(20deg)" },
           "100%": { opacity: "0", transform: "scale(0.6) rotate(40deg) translateY(-12px)" },
         },
+        "mesh-drift-a": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(8%, -6%, 0) scale(1.15)" },
+        },
+        "mesh-drift-b": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1.1)" },
+          "50%": { transform: "translate3d(-10%, 8%, 0) scale(0.95)" },
+        },
+        "mesh-drift-c": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(0.95)" },
+          "50%": { transform: "translate3d(6%, 10%, 0) scale(1.1)" },
+        },
+        "subtle-rise": {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease-out both",
@@ -128,6 +159,10 @@ const config: Config = {
         "stagger-up": "stagger-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both",
         "reaction-toast": "reaction-toast 1.8s cubic-bezier(0.22, 1, 0.36, 1) both",
         "sparkle-pop": "sparkle-pop 1.2s ease-out both",
+        "mesh-drift-a": "mesh-drift-a 22s ease-in-out infinite",
+        "mesh-drift-b": "mesh-drift-b 28s ease-in-out infinite",
+        "mesh-drift-c": "mesh-drift-c 34s ease-in-out infinite",
+        "subtle-rise": "subtle-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },
   },
