@@ -35,9 +35,16 @@ export interface TaskFeatures {
   endedAt: string;
 }
 
+export interface TaskExtractorCallbacks {
+  // Fired once per detected thumb-index pinch (rising edge). The session
+  // shell uses this to drive the on-screen tap counter for finger-tap tasks.
+  onTap?: () => void;
+}
+
 export class TaskExtractor {
   private task: Task;
   private video: HTMLVideoElement;
+  private callbacks: TaskExtractorCallbacks;
   private startedAt = new Date().toISOString();
   private stopFlag = false;
 
@@ -60,9 +67,15 @@ export class TaskExtractor {
   private audio = new AudioFeatureExtractor();
   private framesAnalysed = 0;
 
-  constructor(task: Task, video: HTMLVideoElement, audioStream?: MediaStream) {
+  constructor(
+    task: Task,
+    video: HTMLVideoElement,
+    audioStream?: MediaStream,
+    callbacks: TaskExtractorCallbacks = {},
+  ) {
     this.task = task;
     this.video = video;
+    this.callbacks = callbacks;
     resetPoseState();
     if (audioStream && this.needsAudio()) {
       this.audio.attach(audioStream);
@@ -110,6 +123,7 @@ export class TaskExtractor {
             if (h.thumbIndexClosed && !this.wasClosed) {
               this.tapCount += 1;
               this.tapTimestamps.push(ts);
+              this.callbacks.onTap?.();
             }
             this.wasClosed = h.thumbIndexClosed;
           }

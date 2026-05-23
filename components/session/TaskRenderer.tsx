@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Task, StroopTrial, TaskResult } from "@/lib/session/types";
 import { useReactions } from "./Reactions";
+import { useSessionSignals } from "./SessionSignals";
 
 interface TaskRendererProps {
   task: Task;
@@ -154,41 +155,69 @@ function FingerTapTask({
   onUpdate?: (patch: Partial<TaskResult>) => void;
 }) {
   const { push } = useReactions();
-  const [count, setCount] = useState(0);
+  const { liveTapCount } = useSessionSignals();
+  // Manual button-tap count, used as a fallback when the camera can't see
+  // the hand clearly. The display shows the SUM of both sources so the user
+  // sees their effort reflected immediately.
+  const [manualCount, setManualCount] = useState(0);
+  const total = liveTapCount + manualCount;
+
   // Milestone reactions, fired once each per task.
   const fired = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    onUpdate?.({ fingerTapCount: total });
+    if (total >= 20 && !fired.current.has(20)) {
+      push({ text: "Nice rhythm", tone: "neutral", emoji: "sparkle" });
+      fired.current.add(20);
+    }
+    if (total >= 40 && !fired.current.has(40)) {
+      push({ text: "Steady — good", tone: "success", emoji: "check" });
+      fired.current.add(40);
+    }
+    if (total >= 60 && !fired.current.has(60)) {
+      push({ text: "Strong pace", tone: "success", emoji: "check" });
+      fired.current.add(60);
+    }
+  }, [total, onUpdate, push]);
 
-  const handleTap = () => {
-    setCount((c) => {
-      const next = c + 1;
-      onUpdate?.({ fingerTapCount: next });
-      if (next === 20 && !fired.current.has(20)) {
-        push({ text: "Nice rhythm", tone: "neutral", emoji: "sparkle" });
-        fired.current.add(20);
-      } else if (next === 40 && !fired.current.has(40)) {
-        push({ text: "Steady — good", tone: "success", emoji: "check" });
-        fired.current.add(40);
-      } else if (next === 60 && !fired.current.has(60)) {
-        push({ text: "Strong pace", tone: "success", emoji: "check" });
-        fired.current.add(60);
-      }
-      return next;
-    });
-  };
+  // The pulse cue on every tap (from either source) — small flash animation.
+  const [pulseKey, setPulseKey] = useState(0);
+  useEffect(() => {
+    if (total === 0) return;
+    setPulseKey((k) => k + 1);
+  }, [total]);
+
+  const handleManualTap = () => setManualCount((c) => c + 1);
+
   return (
     <div className="flex flex-col items-center gap-4 py-2">
       <p className="text-sm uppercase tracking-wider text-ink-muted">
         {hand === "right" ? "Right hand" : "Left hand"}
       </p>
-      <button
-        type="button"
-        onClick={handleTap}
-        className="h-40 w-40 rounded-full bg-brand-500 text-white text-3xl font-bold shadow-card hover:bg-brand-600 active:scale-95 transition tabular-nums"
-        aria-label="Tap to count"
-      >
-        {count}
-      </button>
-      <p className="text-sm text-ink-muted">Tap as fast as you can</p>
+      <div className="relative">
+        <span
+          key={pulseKey}
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-brand-500/30 animate-ping"
+          style={{ animationDuration: "0.6s", animationIterationCount: 1 }}
+        />
+        <button
+          type="button"
+          onClick={handleManualTap}
+          className="relative h-40 w-40 rounded-full bg-brand-500 text-white text-3xl font-bold shadow-card hover:bg-brand-600 active:scale-95 transition tabular-nums"
+          aria-label="Tap to count"
+        >
+          {total}
+        </button>
+      </div>
+      <div className="text-center">
+        <p className="text-sm text-ink-muted">
+          Tap your thumb and index finger together as fast as you can
+        </p>
+        <p className="text-xs text-ink-subtle mt-1">
+          We detect from the camera · the button works as a fallback
+        </p>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { CameraPreview } from "./CameraPreview";
 import { TaskRenderer } from "./TaskRenderer";
 import { ReactionProvider } from "./Reactions";
+import { SessionSignalsProvider, useSessionSignals } from "./SessionSignals";
 import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
 import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
@@ -40,11 +41,22 @@ const PHASE_META: Record<Phase, { label: string; icon: React.ReactNode }> = {
   cognitive: { label: "Cognitive", icon: <Brain className="h-4 w-4" /> },
 };
 
-export function SessionRunner({
+export function SessionRunner(props: SessionRunnerProps) {
+  return (
+    <ReactionProvider>
+      <SessionSignalsProvider>
+        <SessionRunnerInner {...props} />
+      </SessionSignalsProvider>
+    </ReactionProvider>
+  );
+}
+
+function SessionRunnerInner({
   tasks,
   onComplete,
   onSkipAll,
 }: SessionRunnerProps) {
+  const { publishTap, resetSignals } = useSessionSignals();
   const [index, setIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -125,7 +137,10 @@ export function SessionRunner({
   // Per-task lifecycle: start extractor + recorder when a new task arrives.
   useEffect(() => {
     if (!stream || !videoElRef.current || !task) return;
-    const extractor = new TaskExtractor(task, videoElRef.current, stream);
+    resetSignals();
+    const extractor = new TaskExtractor(task, videoElRef.current, stream, {
+      onTap: publishTap,
+    });
     extractorRef.current = extractor;
     extractor.run();
 
@@ -215,7 +230,6 @@ export function SessionRunner({
   const overallProgress = ((index + taskProgress) / totalTasks) * 100;
 
   return (
-    <ReactionProvider>
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -326,7 +340,6 @@ export function SessionRunner({
         />
       )}
     </div>
-    </ReactionProvider>
   );
 }
 
