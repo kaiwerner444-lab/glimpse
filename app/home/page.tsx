@@ -202,7 +202,7 @@ function Header() {
           For clinicians
         </Link>
         <Link
-          href="#"
+          href="/settings"
           aria-label="Settings"
           className="px-2 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
         >
