@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Field } from "@/components/ui/Field";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { DateOfBirthPicker } from "@/components/ui/DateOfBirthPicker";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
 import { signUp } from "@/lib/auth/mock-auth";
 import type {
@@ -235,12 +236,7 @@ export default function AccountStep() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <Field label="Date of birth" htmlFor="dob" required>
-            <Input
-              id="dob"
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-            />
+            <DateOfBirthPicker id="dob" value={dob} onChange={setDob} />
           </Field>
           <Field
             label="Biological sex"
