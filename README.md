@@ -21,9 +21,43 @@ After onboarding completes, the user is routed to a placeholder home screen. The
 - **Tailwind CSS** with a custom brand theme (primary `#00707E`)
 - Inline shadcn-style UI primitives (no shadcn CLI dependency)
 - `lucide-react` for icons
-- **Mock auth** (`lib/auth/mock-auth.ts`) and **mock data layer** (`lib/db/mock-db.ts`) backed by `localStorage` — swap points are clean for Clerk + Supabase
+- `@supabase/supabase-js` is in `dependencies` and ready to wire — Eazo's template handles the integration
+- Local mock auth + mock data layer backed by `localStorage` so the project builds and runs without any keys (`lib/auth/mock-auth.ts`, `lib/db/mock-db.ts`). Swap modules to point at Supabase when keys are present.
 
-This is a standard Next.js project layout. It should import directly into any creator/no-code platform that accepts Next.js projects (Vercel, Bolt, Lovable, V0, Replit Agent, and likely Eazo). If Eazo expects a different shape (custom manifest, alternate folder layout, single bundled file), let me know and I'll restructure.
+This is a standard Next.js 14 project layout — no custom manifest, no monorepo, no platform-specific quirks. Eazo imports it directly from GitHub.
+
+---
+
+## Deploying to Eazo
+
+1. **Push this repo to a public GitHub repo** (see "Push to GitHub" below).
+2. In the Eazo chat, paste your GitHub URL.
+3. Eazo will pull the code into its sandbox, adjust env vars / routing for its template, run a build, and ship it to your creator profile.
+4. **Supabase**: create a project at <https://supabase.com>, then in Supabase's SQL editor paste the contents of [`supabase/schema.sql`](supabase/schema.sql). It creates the `accounts`, `onboarding`, and `audit_log` tables with Row Level Security policies scoped to `auth.uid()`. Then set these env vars in Eazo:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
+
+If Eazo's template prefers a different folder layout (e.g. `pages/` instead of `app/`, or a specific Supabase client location), let their import process restructure — the page logic doesn't care about location.
+
+### Push to GitHub
+
+If you don't have this on GitHub yet:
+
+```bash
+# 1. Create a NEW public repo at https://github.com/new
+#    (name it whatever; do NOT initialize with README/gitignore)
+# 2. From this directory:
+git remote add origin https://github.com/<your-username>/<repo-name>.git
+git branch -M main
+git push -u origin main
+```
+
+Or with `gh` (if you've authenticated `gh auth login`):
+
+```bash
+gh repo create glimpse --public --source=. --remote=origin --push
+```
 
 ---
 
@@ -60,11 +94,11 @@ Anchored on a deep teal primary (`#00707E`) per the spec. Calm and clinical with
 
 | Concern                | Mock module                          | Replace with                                      |
 | ---------------------- | ------------------------------------ | ------------------------------------------------- |
-| Authentication         | `lib/auth/mock-auth.ts`              | Clerk (`@clerk/nextjs`)                           |
-| Persistence            | `lib/db/mock-db.ts`                  | Supabase (`@supabase/supabase-js`) with RLS      |
+| Authentication         | `lib/auth/mock-auth.ts`              | Supabase Auth (`@supabase/supabase-js`)           |
+| Persistence            | `lib/db/mock-db.ts`                  | Supabase Postgres (`@supabase/supabase-js`) with the RLS policies in `supabase/schema.sql` |
 | Risk stratification    | `lib/risk/stratify.ts`               | Server-side PRS pipeline (Nucleus API + PLINK)   |
 | Hardware pairing       | `app/onboarding/glasses/page.tsx`    | Meta companion SDK + `navigator.mediaDevices`     |
-| Genomic file ingest    | `app/onboarding/genomics/page.tsx`   | Signed S3 upload → background VCF/raw parser     |
+| Genomic file ingest    | `app/onboarding/genomics/page.tsx`   | Signed Supabase Storage upload → background VCF/raw parser |
 
 All function signatures and state shapes are stable — swapping these modules should not require touching the page code.
 
