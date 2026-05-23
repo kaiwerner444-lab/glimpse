@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Settings, Users, FileText, ChevronRight } from "lucide-react";
+import { Users, FileText, ChevronRight } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Greeting } from "@/components/dashboard/Greeting";
 import { SignalCard } from "@/components/dashboard/SignalCard";
@@ -15,6 +15,7 @@ import { LevelBadge } from "@/components/dashboard/LevelBadge";
 import { WeeklyChallenge } from "@/components/dashboard/WeeklyChallenge";
 import { AchievementsGrid } from "@/components/dashboard/AchievementsGrid";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
+import { AccountMenu } from "@/components/dashboard/AccountMenu";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
 import {
@@ -194,20 +195,14 @@ function Header() {
   return (
     <header className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-5 flex items-center justify-between">
       <Logo />
-      <nav className="flex items-center gap-1 text-sm">
+      <nav className="flex items-center gap-3 text-sm">
         <Link
           href="/clinician"
           className="px-3 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
         >
           For clinicians
         </Link>
-        <Link
-          href="/settings"
-          aria-label="Settings"
-          className="px-2 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
-        >
-          <Settings className="h-4 w-4" />
-        </Link>
+        <AccountMenu />
       </nav>
     </header>
   );
