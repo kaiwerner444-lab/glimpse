@@ -1,245 +1,229 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Eye, Activity, Brain, CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Mic, Video, Sparkles } from "lucide-react";
 import { StepShell } from "@/components/onboarding/StepShell";
 import { Button } from "@/components/ui/Button";
+import { SessionRunner } from "@/components/session/SessionRunner";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
-import { cn } from "@/lib/utils";
+import {
+  BASELINE_TASKS,
+  BASELINE_DURATION_SECONDS,
+} from "@/lib/session/baseline";
+import type { TaskResult } from "@/lib/session/types";
 
-interface Phase {
-  key: "speech" | "visual" | "movement" | "cognitive";
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-  seconds: number;
-}
-
-const PHASES: Phase[] = [
-  {
-    key: "speech",
-    label: "Speech baseline",
-    description:
-      "Read a short passage and answer two open-ended prompts. We capture pace, prosody and lexical diversity at your normal.",
-    icon: <Mic className="h-5 w-5" />,
-    seconds: 240,
-  },
-  {
-    key: "visual",
-    label: "Visual & facial baseline",
-    description:
-      "Look at the mirror, hold a neutral expression, then smile and raise your eyebrows. We capture symmetry and micro-expression range.",
-    icon: <Eye className="h-5 w-5" />,
-    seconds: 180,
-  },
-  {
-    key: "movement",
-    label: "Movement baseline",
-    description:
-      "Finger tapping, arm hold, and a few seconds of single-leg stance. We capture amplitude and stability.",
-    icon: <Activity className="h-5 w-5" />,
-    seconds: 240,
-  },
-  {
-    key: "cognitive",
-    label: "Cognitive baseline",
-    description:
-      "Three short attention and memory tasks. Sets the reference for daily micro-cognitive checks.",
-    icon: <Brain className="h-5 w-5" />,
-    seconds: 240,
-  },
-];
-
-const TOTAL_SECONDS = PHASES.reduce((a, p) => a + p.seconds, 0);
+type Stage = "intro" | "running" | "done";
 
 export default function BaselineStep() {
   const router = useRouter();
   const { state, update } = useOnboardingState();
-  const [started, setStarted] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [done, setDone] = useState(!!state.baseline?.completedAt);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [stage, setStage] = useState<Stage>(
+    state.baseline?.completedAt ? "done" : "intro",
+  );
+  const [results, setResults] = useState<TaskResult[]>([]);
 
-  useEffect(() => {
-    if (!started || done) return;
-    timerRef.current = setInterval(() => {
-      setElapsed((e) => {
-        const next = e + 1;
-        if (next >= TOTAL_SECONDS) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          setDone(true);
-        }
-        return next;
-      });
-    }, 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [started, done]);
-
-  const finish = () => {
+  const finish = (completed: boolean) => {
     update({
       baseline: {
-        completedAt: new Date().toISOString(),
-        durationSeconds: elapsed || TOTAL_SECONDS,
-        featuresCaptured: true,
+        completedAt: completed ? new Date().toISOString() : undefined,
+        durationSeconds: completed ? BASELINE_DURATION_SECONDS : undefined,
+        featuresCaptured: completed,
       },
       completedAt: new Date().toISOString(),
     });
     router.push("/home");
   };
 
-  const skipForNow = () => {
-    update({
-      baseline: { featuresCaptured: false },
-      completedAt: new Date().toISOString(),
-    });
-    router.push("/home");
-  };
+  if (stage === "running") {
+    return (
+      <StepShell
+        step="baseline"
+        eyebrow="Baseline session"
+        title="Let's capture your normal"
+        description="Follow the on-screen instructions for each task. We'll guide you, time you, and move you on automatically."
+      >
+        <SessionRunner
+          tasks={BASELINE_TASKS}
+          onComplete={(r) => {
+            setResults(r);
+            setStage("done");
+          }}
+          onSkipAll={() => setStage("done")}
+        />
+      </StepShell>
+    );
+  }
 
-  const currentPhase = phaseAt(elapsed);
-  const remaining = Math.max(0, TOTAL_SECONDS - elapsed);
+  if (stage === "done") {
+    return (
+      <StepShell
+        step="baseline"
+        eyebrow="Baseline session"
+        title="Baseline captured"
+        description="Your personal baseline is what every future session will be compared against. Your daily ritual starts tomorrow morning."
+        footer={
+          <>
+            <span className="text-sm text-ink-muted">
+              We&apos;ll send a gentle reminder around your usual morning time.
+            </span>
+            <Button onClick={() => finish(true)}>Go to home</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <div className="glimpse-card p-6 flex items-center gap-4">
+            <CheckCircle2 className="h-10 w-10 text-success shrink-0" />
+            <div>
+              <h3 className="text-xl font-semibold text-ink">
+                All four modules captured
+              </h3>
+              <p className="text-base text-ink-muted mt-1">
+                Speech, visual, movement and cognitive baselines saved.
+              </p>
+            </div>
+          </div>
+          <ResultsRecap results={results} />
+        </div>
+      </StepShell>
+    );
+  }
 
   return (
     <StepShell
       step="baseline"
       eyebrow="Baseline session"
-      title={
-        done
-          ? "Baseline captured"
-          : started
-            ? "Baseline in progress"
-            : "One fifteen-minute baseline, then five minutes a day"
-      }
-      description={
-        done
-          ? "Your personal baseline is what every future session will be compared against. We'll start your daily ritual tomorrow morning."
-          : "Drift detection only works if we know your normal. Stand in front of a mirror in good light, put on your glasses (or position your phone), and we'll guide you through four short modules."
-      }
+      title="One ~15-minute baseline, then five minutes a day"
+      description="Drift detection only works if we know your normal. Stand in front of a mirror in good light, put on your glasses (or position your phone), and we'll guide you through each task."
       footer={
-        done ? (
-          <>
-            <span className="text-sm text-ink-muted">
-              You&apos;re all set. Daily session begins tomorrow morning.
-            </span>
-            <Button onClick={finish}>Go to home</Button>
-          </>
-        ) : (
-          <>
-            <Button variant="ghost" onClick={skipForNow}>
-              Skip for now
-            </Button>
-            {started ? (
-              <Button onClick={finish} disabled={!done}>
-                {done ? "Continue" : `Recording… ${formatTime(remaining)} left`}
-              </Button>
-            ) : (
-              <Button onClick={() => setStarted(true)}>Start baseline</Button>
-            )}
-          </>
-        )
+        <>
+          <Button variant="ghost" onClick={() => finish(false)}>
+            Skip for now
+          </Button>
+          <Button onClick={() => setStage("running")}>Begin baseline</Button>
+        </>
       }
     >
-      {done ? (
-        <div className="glimpse-card p-8 flex items-center gap-4">
-          <CheckCircle2 className="h-10 w-10 text-success shrink-0" />
-          <div>
-            <h3 className="text-xl font-semibold text-ink">All four modules captured</h3>
-            <p className="text-base text-ink-muted mt-1">
-              Speech, visual, movement, and cognitive baselines saved.
-              {state.glasses?.mode === "deferred"
-                ? " You'll need to pair hardware before your first daily session."
-                : null}
+      <div className="flex flex-col gap-6">
+        <div className="glimpse-card p-6 flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="h-14 w-14 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+            <Sparkles className="h-7 w-7" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-ink">
+              What happens during the session
+            </h3>
+            <p className="text-base text-ink-muted mt-1.5 leading-relaxed">
+              We&apos;ll show you each task one at a time with a countdown.
+              Some are passive — just speak, hold a position, or follow a dot.
+              Others (Stroop, digit span, finger tapping) ask you to interact
+              on screen. The session auto-advances; you can pause or skip
+              anytime.
             </p>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-          <div className="glimpse-card p-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-ink-muted">
-                Session progress
-              </span>
-              <span className="text-sm text-ink-muted tabular-nums">
-                {formatTime(elapsed)} / {formatTime(TOTAL_SECONDS)}
-              </span>
-            </div>
-            <div className="h-2 bg-black/[0.06] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand-500 transition-all"
-                style={{ width: `${(elapsed / TOTAL_SECONDS) * 100}%` }}
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {PHASES.map((p) => {
-              const isActive = started && currentPhase?.key === p.key;
-              const isDone =
-                started && elapsed >= cumulativeUpTo(p.key);
-              return (
-                <div
-                  key={p.key}
-                  className={cn(
-                    "glimpse-card p-5 transition border",
-                    isActive && "border-brand-500 shadow-card",
-                    !isActive && !isDone && "opacity-90",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-xl flex items-center justify-center",
-                        isDone
-                          ? "bg-success/15 text-success"
-                          : isActive
-                            ? "bg-brand-500 text-white"
-                            : "bg-brand-50 text-brand-500",
-                      )}
-                    >
-                      {isDone ? <CheckCircle2 className="h-5 w-5" /> : p.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-ink">{p.label}</h3>
-                      <p className="text-xs uppercase tracking-wider text-ink-subtle mt-0.5">
-                        {Math.round(p.seconds / 60)} minutes
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-ink-muted mt-3 leading-relaxed">
-                    {p.description}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <PermissionTile
+            icon={<Mic className="h-5 w-5" />}
+            title="Microphone access"
+            body="We'll ask for permission when the session starts. Used only during active tasks."
+          />
+          <PermissionTile
+            icon={<Video className="h-5 w-5" />}
+            title="Camera access"
+            body="A small mirror preview shows what's captured. Raw video is processed and discarded."
+          />
         </div>
-      )}
+
+        <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Speech", count: 4 },
+            { label: "Visual", count: 5 },
+            { label: "Movement", count: 5 },
+            { label: "Cognitive", count: 4 },
+          ].map((p) => (
+            <li
+              key={p.label}
+              className="glimpse-card p-4 text-center"
+            >
+              <p className="text-xs uppercase tracking-wider text-ink-subtle">
+                {p.label}
+              </p>
+              <p className="text-2xl font-semibold text-ink mt-1">
+                {p.count}
+              </p>
+              <p className="text-xs text-ink-muted">tasks</p>
+            </li>
+          ))}
+        </ul>
+      </div>
     </StepShell>
   );
 }
 
-function phaseAt(elapsed: number): Phase | null {
-  let acc = 0;
-  for (const p of PHASES) {
-    acc += p.seconds;
-    if (elapsed < acc) return p;
-  }
-  return null;
+function PermissionTile({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="glimpse-card p-5">
+      <div className="h-9 w-9 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center mb-3">
+        {icon}
+      </div>
+      <p className="text-base font-semibold text-ink">{title}</p>
+      <p className="text-sm text-ink-muted mt-1 leading-relaxed">{body}</p>
+    </div>
+  );
 }
 
-function cumulativeUpTo(key: Phase["key"]): number {
-  let acc = 0;
-  for (const p of PHASES) {
-    acc += p.seconds;
-    if (p.key === key) return acc;
-  }
-  return acc;
+function ResultsRecap({ results }: { results: TaskResult[] }) {
+  if (results.length === 0) return null;
+  const completed = results.filter((r) => !r.skipped).length;
+  const tapCounts = results.flatMap((r) =>
+    typeof r.fingerTapCount === "number" ? [r.fingerTapCount] : [],
+  );
+  const stroop = results.find(
+    (r) =>
+      typeof r.stroopCorrect === "number" &&
+      typeof r.stroopTotal === "number" &&
+      r.stroopTotal > 0,
+  );
+
+  return (
+    <div className="glimpse-card p-6">
+      <p className="text-sm font-medium uppercase tracking-wider text-ink-subtle mb-4">
+        Session recap
+      </p>
+      <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <Stat label="Tasks completed" value={`${completed} / ${results.length}`} />
+        {tapCounts.length ? (
+          <Stat
+            label="Finger taps captured"
+            value={tapCounts.join(" · ")}
+          />
+        ) : null}
+        {stroop ? (
+          <Stat
+            label="Stroop accuracy"
+            value={`${stroop.stroopCorrect} / ${stroop.stroopTotal}`}
+          />
+        ) : null}
+      </dl>
+    </div>
+  );
 }
 
-function formatTime(s: number): string {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, "0")}`;
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs uppercase tracking-wider text-ink-subtle">{label}</dt>
+      <dd className="text-lg font-semibold text-ink mt-1 tabular-nums">{value}</dd>
+    </div>
+  );
 }
