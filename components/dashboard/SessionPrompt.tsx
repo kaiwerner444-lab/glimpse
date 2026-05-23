@@ -1,4 +1,6 @@
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { Sunrise, Clock, Play } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -9,14 +11,18 @@ interface SessionPromptProps {
   href: string;
 }
 
-// The "today's session" call to action. When the session window is open
-// we surface a primary CTA that routes into the session runner.
+// Today's-ritual call to action. Uses a programmatic router push instead
+// of wrapping the button in a <Link> — nesting <button> inside <a> is
+// invalid HTML and Safari/Chrome don't reliably propagate the click,
+// which is why "Begin session" appeared dead.
 export function SessionPrompt({
   available,
   scheduledLabel,
   taskCount,
   href,
 }: SessionPromptProps) {
+  const router = useRouter();
+
   return (
     <div className="relative overflow-hidden glimpse-card p-6 sm:p-7">
       <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-brand-50 blur-3xl pointer-events-none" />
@@ -44,12 +50,16 @@ export function SessionPrompt({
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {available ? (
-            <Link href={href}>
-              <Button size="lg" className="gap-2">
-                <Play className="h-4 w-4" />
-                Begin session
-              </Button>
-            </Link>
+            <Button
+              size="lg"
+              className="gap-2"
+              onClick={() => router.push(href)}
+              // Also pre-fetch the route on hover so the transition is instant.
+              onMouseEnter={() => router.prefetch(href)}
+            >
+              <Play className="h-4 w-4" />
+              Begin session
+            </Button>
           ) : (
             <Button variant="secondary" size="lg">
               Reschedule
