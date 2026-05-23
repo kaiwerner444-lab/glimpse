@@ -2,14 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dna, Upload, SkipForward, FileCheck2 } from "lucide-react";
+import { Dna, Upload, SkipForward, FileCheck2, ListChecks } from "lucide-react";
 import { StepShell } from "@/components/onboarding/StepShell";
 import { Button } from "@/components/ui/Button";
 import { RadioGroup } from "@/components/ui/RadioGroup";
 import { Select } from "@/components/ui/Select";
 import { Field } from "@/components/ui/Field";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { useOnboardingState } from "@/hooks/useOnboardingState";
-import type { GenomicsPath, GenomicsProvider } from "@/lib/types";
+import {
+  CONDITION_LABELS,
+  type GenomicsPath,
+  type GenomicsProvider,
+  type TrackedCondition,
+} from "@/lib/types";
 
 const PROVIDERS: Array<{ value: GenomicsProvider; label: string }> = [
   { value: "nucleus", label: "Nucleus Genomics (VCF)" },
@@ -18,6 +24,8 @@ const PROVIDERS: Array<{ value: GenomicsProvider; label: string }> = [
   { value: "myheritage", label: "MyHeritage (raw)" },
   { value: "color", label: "Color Health (VCF)" },
 ];
+
+const CONDITION_VALUES = Object.keys(CONDITION_LABELS) as TrackedCondition[];
 
 export default function GenomicsStep() {
   const router = useRouter();
@@ -31,14 +39,29 @@ export default function GenomicsStep() {
   const [fileName, setFileName] = useState<string | undefined>(
     state.genomics?.rawFileName,
   );
+  const [selectedConditions, setSelectedConditions] = useState<TrackedCondition[]>(
+    state.genomics?.selectedConditions ?? [],
+  );
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (f) setFileName(f.name);
   };
 
+  const toggleCondition = (c: TrackedCondition) => {
+    setSelectedConditions((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
+    );
+  };
+
+  const selectAll = () => setSelectedConditions(CONDITION_VALUES);
+  const clearAll = () => setSelectedConditions([]);
+
+  const canContinue =
+    !!path && (path !== "select_diseases" || selectedConditions.length > 0);
+
   const onContinue = () => {
-    if (!path) return;
+    if (!path || !canContinue) return;
     update({
       genomics: {
         path,
@@ -46,6 +69,8 @@ export default function GenomicsStep() {
         rawFileName: path === "import_raw" ? fileName : undefined,
         orderedAt:
           path === "order_kit" ? new Date().toISOString() : undefined,
+        selectedConditions:
+          path === "select_diseases" ? selectedConditions : undefined,
       },
       step: "family-history",
     });
@@ -63,7 +88,7 @@ export default function GenomicsStep() {
           <Button variant="ghost" onClick={() => router.push("/onboarding/glasses")}>
             Back
           </Button>
-          <Button onClick={onContinue} disabled={!path}>
+          <Button onClick={onContinue} disabled={!canContinue}>
             Continue
           </Button>
         </>
@@ -88,6 +113,13 @@ export default function GenomicsStep() {
               description:
                 "23andMe, AncestryDNA, MyHeritage, Color, or Nucleus. We accept the standard formats.",
               icon: <Upload className="h-5 w-5" />,
+            },
+            {
+              value: "select_diseases",
+              label: "Just tell us what to screen for",
+              description:
+                "Pick the conditions you want monitored. No genetics or family history needed — useful if you already know what's relevant.",
+              icon: <ListChecks className="h-5 w-5" />,
             },
             {
               value: "skip",
@@ -143,6 +175,48 @@ export default function GenomicsStep() {
               finish onboarding. Results take 4–6 weeks. Your daily ritual can
               start immediately based on family history.
             </p>
+          </div>
+        ) : null}
+
+        {path === "select_diseases" ? (
+          <div className="glimpse-card p-6">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div>
+                <p className="text-base font-semibold text-ink">
+                  Pick what to screen for
+                </p>
+                <p className="text-sm text-ink-muted mt-0.5">
+                  {selectedConditions.length} of {CONDITION_VALUES.length} selected
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-sm font-medium text-brand-500 hover:text-brand-600"
+                >
+                  Select all
+                </button>
+                <span className="text-ink-subtle">·</span>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-sm font-medium text-ink-muted hover:text-ink"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {CONDITION_VALUES.map((c) => (
+                <Checkbox
+                  key={c}
+                  checked={selectedConditions.includes(c)}
+                  onChange={() => toggleCondition(c)}
+                  label={CONDITION_LABELS[c]}
+                />
+              ))}
+            </div>
           </div>
         ) : null}
       </div>

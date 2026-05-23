@@ -79,13 +79,26 @@ export function stratify(
     return { condition, score, drivers };
   });
 
+  // Explicit user selections from the "tell us what to screen for" path
+  // take precedence — surface them above the auto-computed list with a
+  // small boost so they sort to the top of the risk-profile screen.
+  const explicit = new Set(genomics?.selectedConditions ?? []);
+  if (explicit.size) {
+    for (const s of scores) {
+      if (explicit.has(s.condition)) {
+        s.score = Math.max(s.score, 0.5);
+      }
+    }
+  }
+
   scores.sort((a, b) => b.score - a.score);
 
-  // Pre-confirm anything above a soft threshold — user can adjust on next screen.
-  const confirmed = scores
-    .filter((s) => s.score >= 0.18)
-    .slice(0, 5)
-    .map((s) => s.condition);
+  const confirmed = explicit.size
+    ? Array.from(explicit)
+    : scores
+        .filter((s) => s.score >= 0.18)
+        .slice(0, 5)
+        .map((s) => s.condition);
 
   return {
     scores,

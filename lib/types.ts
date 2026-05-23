@@ -33,7 +33,11 @@ export interface GlassesSetup {
   pairedAt?: string;
 }
 
-export type GenomicsPath = "order_kit" | "import_raw" | "skip";
+export type GenomicsPath =
+  | "order_kit"
+  | "import_raw"
+  | "select_diseases"
+  | "skip";
 
 export type GenomicsProvider =
   | "nucleus"
@@ -47,6 +51,10 @@ export interface GenomicsSetup {
   provider?: GenomicsProvider;
   rawFileName?: string;
   orderedAt?: string;
+  // Set when the user picks "tell us what to screen for" instead of
+  // providing genetics. Treated as the source of truth on the risk
+  // profile step — auto-stratification still runs but these win.
+  selectedConditions?: TrackedCondition[];
 }
 
 export type Relationship =

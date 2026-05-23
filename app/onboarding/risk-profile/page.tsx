@@ -39,10 +39,13 @@ export default function RiskProfileStep() {
     setProfile(computed);
   }, [hydrated, state.account, state.familyHistory, state.genomics, state.riskProfile]);
 
-  const topFive = useMemo(
-    () => (profile ? profile.scores.slice(0, 5) : []),
-    [profile],
-  );
+  // Show at least the top 5, but expand to cover every confirmed
+  // condition when the user picked them explicitly on the genetics step.
+  const visibleScores = useMemo(() => {
+    if (!profile) return [];
+    const minRows = Math.max(5, profile.confirmed.length);
+    return profile.scores.slice(0, minRows);
+  }, [profile]);
 
   const toggle = (c: TrackedCondition) => {
     if (!profile) return;
@@ -99,7 +102,7 @@ export default function RiskProfileStep() {
             </p>
           </div>
 
-          {topFive.map((score) => (
+          {visibleScores.map((score) => (
             <RiskRow
               key={score.condition}
               score={score}
