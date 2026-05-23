@@ -26,6 +26,8 @@ import {
 import { loadGamification } from "@/lib/gamification/state";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
+import { loadFeedback } from "@/lib/feedback/storage";
+import { type ActivityFeedback } from "@/lib/feedback/types";
 import type { SignalSeries } from "@/lib/dashboard/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +39,7 @@ export default function ReportsPage() {
   const [name, setName] = useState<string>("");
   const [streak, setStreak] = useState<number>(5);
   const [sessions, setSessions] = useState<number>(12);
+  const [feedback, setFeedback] = useState<ActivityFeedback[]>([]);
 
   useEffect(() => {
     const s = loadOnboarding();
@@ -49,7 +52,40 @@ export default function ReportsPage() {
       setStreak(g.currentStreak);
       setSessions(g.totalSessions);
     }
+    setFeedback(loadFeedback());
   }, []);
+
+  const feedbackSummary = useMemo(() => {
+    const total = feedback.length;
+    if (total === 0) return null;
+    const tooHard = feedback.filter((f) => f.rating === "too_hard").length;
+    const justRight = feedback.filter((f) => f.rating === "just_right").length;
+    const tooEasy = feedback.filter((f) => f.rating === "too_easy").length;
+    const bodyIssues = feedback.filter((f) => f.bodyIssueFlag).length;
+    // Most-flagged task overall.
+    const counts = new Map<string, { hard: number; total: number; title: string }>();
+    for (const f of feedback) {
+      const c = counts.get(f.taskId) ?? {
+        hard: 0,
+        total: 0,
+        title: f.taskTitle,
+      };
+      c.total += 1;
+      if (f.rating === "too_hard") c.hard += 1;
+      counts.set(f.taskId, c);
+    }
+    const mostFlagged = Array.from(counts.entries())
+      .filter(([, c]) => c.hard > 0)
+      .sort((a, b) => b[1].hard - a[1].hard)[0];
+    return {
+      total,
+      tooHard,
+      justRight,
+      tooEasy,
+      bodyIssues,
+      mostFlagged: mostFlagged ? mostFlagged[1] : null,
+    };
+  }, [feedback]);
 
   const days = windowChoice === "week" ? 7 : 30;
   const series = useMemo(() => buildLongSignalSeries(0, days), [days]);
@@ -249,6 +285,49 @@ export default function ReportsPage() {
             />
           </ul>
         </section>
+
+        {/* Feedback aggregation */}
+        {feedbackSummary ? (
+          <section
+            className="animate-stagger-up"
+            style={{ animationDelay: "400ms" }}
+          >
+            <p className="text-sm font-medium uppercase tracking-wider text-brand-500 mb-2">
+              What you told us
+            </p>
+            <h2 className="text-2xl font-semibold text-ink mb-4">
+              Feedback shaping tomorrow&apos;s session
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FeedbackTile
+                label="Total feedback"
+                value={String(feedbackSummary.total)}
+                detail={`${feedbackSummary.justRight} just-right · ${feedbackSummary.tooHard} hard · ${feedbackSummary.tooEasy} easy`}
+              />
+              <FeedbackTile
+                label="Body issues flagged"
+                value={String(feedbackSummary.bodyIssues)}
+                detail={
+                  feedbackSummary.bodyIssues > 0
+                    ? "We'll keep similar movements out of the rotation."
+                    : "Nothing flagged."
+                }
+              />
+              {feedbackSummary.mostFlagged ? (
+                <FeedbackTile
+                  label="Most flagged task"
+                  value={feedbackSummary.mostFlagged.title}
+                  detail={`${feedbackSummary.mostFlagged.hard} of ${feedbackSummary.mostFlagged.total} runs felt too hard.`}
+                />
+              ) : null}
+            </div>
+            <p className="text-xs text-ink-muted leading-relaxed mt-4">
+              Your feedback adjusts the daily mix. Tasks marked too hard
+              repeatedly get rotated less; body-issue flags exclude similar
+              movements until you say otherwise from Settings.
+            </p>
+          </section>
+        ) : null}
 
         {/* Clinical summary — printable */}
         <section
@@ -495,6 +574,28 @@ function DetailedSignalCard({ series }: { series: SignalSeries }) {
       <p className="text-sm text-ink-muted mt-3 leading-relaxed">
         {series.blurb} · Baseline {series.baseline} {series.unit}.
       </p>
+    </div>
+  );
+}
+
+function FeedbackTile({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="glimpse-card p-5">
+      <p className="text-xs uppercase tracking-wider text-ink-subtle">
+        {label}
+      </p>
+      <p className="text-2xl font-semibold text-ink mt-1.5 leading-tight">
+        {value}
+      </p>
+      <p className="text-sm text-ink-muted mt-2 leading-relaxed">{detail}</p>
     </div>
   );
 }

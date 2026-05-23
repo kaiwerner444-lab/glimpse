@@ -131,6 +131,7 @@ export type TrackedCondition =
   | "type_1_diabetes"
   | "type_2_diabetes"
   | "cardiovascular"
+  | "chronic_kidney_disease"
   | "breast_cancer"
   | "colorectal_cancer"
   | "melanoma"
@@ -205,6 +206,7 @@ export const CONDITION_LABELS: Record<TrackedCondition, string> = {
   type_1_diabetes: "Type 1 diabetes",
   type_2_diabetes: "Type 2 diabetes",
   cardiovascular: "Cardiovascular disease",
+  chronic_kidney_disease: "Chronic kidney disease",
   breast_cancer: "Breast cancer",
   colorectal_cancer: "Colorectal cancer",
   melanoma: "Melanoma",

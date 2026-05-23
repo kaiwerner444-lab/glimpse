@@ -7,7 +7,8 @@ import { CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { SessionRunner } from "@/components/session/SessionRunner";
-import { buildDailyTasks } from "@/lib/session/daily";
+import { buildDailyTasks, buildUserContext } from "@/lib/session/daily";
+import { loadOnboarding } from "@/lib/db/mock-db";
 import { recordSession, loadGamification, saveGamification, levelFromXp } from "@/lib/gamification/state";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import type { TaskResult } from "@/lib/session/types";
@@ -21,9 +22,10 @@ export default function DailySession() {
   const [stage, setStage] = useState<Stage>("running");
   const [results, setResults] = useState<TaskResult[]>([]);
   const [features, setFeatures] = useState<TaskFeatures[]>([]);
-  // Compute on render so the balance task reflects the user's local day,
-  // not the day the bundle was built.
-  const tasks = buildDailyTasks();
+  // Compute on render so the rotation reflects the user's local day
+  // AND their personal risk profile (existing diagnoses + family
+  // history + confirmed risks).
+  const tasks = buildDailyTasks(buildUserContext(loadOnboarding()));
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
   const [newLevel, setNewLevel] = useState<number | null>(null);

@@ -294,6 +294,17 @@ function SessionRunnerInner({
             <p className="mt-2 text-base sm:text-lg text-ink-muted leading-relaxed">
               {task.instruction}
             </p>
+            {task.whyToday ? (
+              <div className="mt-4 rounded-xl bg-brand-50/60 border border-brand-500/15 px-4 py-3 flex items-start gap-2.5">
+                <span className="inline-flex h-5 w-5 rounded-full bg-brand-500 text-white items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                  ?
+                </span>
+                <p className="text-sm text-ink leading-relaxed">
+                  <span className="font-medium text-brand-700">Why today: </span>
+                  {task.whyToday}
+                </p>
+              </div>
+            ) : null}
           </div>
           <CountdownRing
             elapsed={elapsed}

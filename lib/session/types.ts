@@ -17,6 +17,12 @@ export interface BaseTask {
   instruction: string;
   durationSeconds: number;
   modality: Modality;
+  // Set when this task is in today's session for a specific reason
+  // beyond the default rotation — e.g. a comorbid check, a longitudinal
+  // anchor, or a personalisation based on the user's risk profile. The
+  // SessionRunner surfaces this inline so the user understands why
+  // their daily mix shifted.
+  whyToday?: string;
 }
 
 export type Task =
