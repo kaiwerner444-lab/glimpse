@@ -83,7 +83,7 @@ export default function Home() {
             <SessionPrompt
               available
               scheduledLabel="Now · five-minute window open"
-              taskCount={5}
+              taskCount={7}
               href="/session/daily"
             />
           </div>

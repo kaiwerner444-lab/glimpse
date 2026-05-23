@@ -7,7 +7,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { SessionRunner } from "@/components/session/SessionRunner";
-import { DAILY_TASKS } from "@/lib/session/daily";
+import { buildDailyTasks } from "@/lib/session/daily";
 import { recordSession, loadGamification, saveGamification, levelFromXp } from "@/lib/gamification/state";
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
@@ -19,6 +19,9 @@ export default function DailySession() {
   const [stage, setStage] = useState<Stage>("running");
   const [results, setResults] = useState<TaskResult[]>([]);
   const [features, setFeatures] = useState<TaskFeatures[]>([]);
+  // Compute on render so the balance task reflects the user's local day,
+  // not the day the bundle was built.
+  const tasks = buildDailyTasks();
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [newAchievements, setNewAchievements] = useState<string[]>([]);
   const [newLevel, setNewLevel] = useState<number | null>(null);
@@ -50,7 +53,7 @@ export default function DailySession() {
       <main className="px-4 sm:px-6 lg:px-8 max-w-3xl w-full mx-auto py-6 sm:py-10">
         {stage === "running" ? (
           <SessionRunner
-            tasks={DAILY_TASKS}
+            tasks={tasks}
             onComplete={onComplete}
             onSkipAll={() => router.push("/home")}
           />
