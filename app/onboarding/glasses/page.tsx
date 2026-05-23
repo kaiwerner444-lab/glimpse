@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bluetooth, Camera, Glasses, ExternalLink } from "lucide-react";
+import { Bluetooth, Camera, Glasses, ExternalLink, AlertTriangle, Info } from "lucide-react";
 import { StepShell } from "@/components/onboarding/StepShell";
 import { Button } from "@/components/ui/Button";
 import { RadioGroup } from "@/components/ui/RadioGroup";
@@ -15,30 +15,24 @@ export default function GlassesStep() {
   const [mode, setMode] = useState<GlassesMode | null>(
     state.glasses?.mode ?? null,
   );
-  const [pairing, setPairing] = useState(false);
-  const [paired, setPaired] = useState(!!state.glasses?.pairedAt);
-
   const goBack = () => router.push("/onboarding/clinical-context");
 
   const onContinue = () => {
     if (!mode) return;
     update({
       glasses: {
+        // Meta Ray Ban genuinely cannot be paired today — store the intent
+        // but never claim it's actively paired. The honest version reads
+        // 'ray_ban_meta' as "selected, deferred until SDK ships." The phone
+        // fallback DOES become live the moment the first session starts
+        // getUserMedia.
         mode,
-        pairedAt: paired ? new Date().toISOString() : undefined,
+        pairedAt:
+          mode === "phone_fallback" ? new Date().toISOString() : undefined,
       },
       step: "genomics",
     });
     router.push("/onboarding/genomics");
-  };
-
-  const simulatePair = async () => {
-    setPairing(true);
-    // Stub. In production, this kicks off the Meta companion SDK handshake
-    // or, for the fallback, requests getUserMedia({ video: { facingMode: "user" } }).
-    await new Promise((r) => setTimeout(r, 1400));
-    setPairing(false);
-    setPaired(true);
   };
 
   return (
@@ -62,24 +56,21 @@ export default function GlassesStep() {
         <RadioGroup<GlassesMode>
           name="glasses-mode"
           value={mode}
-          onChange={(v) => {
-            setMode(v);
-            if (v !== "ray_ban_meta") setPaired(false);
-          }}
+          onChange={(v) => setMode(v)}
           options={[
             {
-              value: "ray_ban_meta",
-              label: "I have Meta Ray Ban glasses",
+              value: "phone_fallback",
+              label: "Use my phone or laptop camera",
               description:
-                "Pair over Bluetooth. We'll use the camera, microphone, and IMU during active sessions only.",
-              icon: <Glasses className="h-5 w-5" />,
+                "Front camera, requested at the start of every session. Works today, slightly noisier signal than glasses would give.",
+              icon: <Camera className="h-5 w-5" />,
             },
             {
-              value: "phone_fallback",
-              label: "Use my phone as a fallback",
+              value: "ray_ban_meta",
+              label: "Meta Ray Ban (when developer access ships)",
               description:
-                "Mount your phone in front of the mirror with the front camera facing you. Slightly noisier signal, but works everywhere.",
-              icon: <Camera className="h-5 w-5" />,
+                "Live streaming from consumer Ray Ban Meta is not yet possible. We'll flip this on the moment Meta opens its SDK to third parties.",
+              icon: <Glasses className="h-5 w-5" />,
             },
             {
               value: "deferred",
@@ -91,29 +82,30 @@ export default function GlassesStep() {
         />
 
         {mode === "ray_ban_meta" ? (
-          <div className="glimpse-card p-6 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center">
-                <Bluetooth className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-base font-medium text-ink">
-                  {paired ? "Paired with Meta Ray Ban" : "Pair over Bluetooth"}
-                </p>
-                <p className="text-sm text-ink-muted">
-                  {paired
-                    ? "Camera, microphone, and IMU access granted for active sessions only."
-                    : "We only request access during the daily session, never in the background."}
-                </p>
-              </div>
+          <div className="rounded-xl bg-warn/10 border border-warn/20 p-4 flex items-start gap-3">
+            <Info className="h-5 w-5 text-warn shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-base font-semibold text-warn mb-1">
+                Honest note about Meta Ray Ban
+              </p>
+              <p className="text-sm text-ink-muted leading-relaxed">
+                Meta has not released a public SDK that lets third-party web
+                apps stream from consumer Ray Ban Meta glasses in real time.
+                For now your sessions will run on the phone or laptop camera
+                regardless. Glimpse picks the moment Meta opens developer
+                access — until then, this preference is stored without
+                fake-pairing.
+              </p>
+              <a
+                href="https://developers.meta.com/wearables/"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-warn hover:underline mt-2"
+              >
+                Meta wearables developer page
+                <ExternalLink className="h-3 w-3" />
+              </a>
             </div>
-            <Button
-              variant={paired ? "secondary" : "primary"}
-              onClick={simulatePair}
-              disabled={pairing || paired}
-            >
-              {pairing ? "Pairing…" : paired ? "Paired" : "Start pairing"}
-            </Button>
           </div>
         ) : null}
 

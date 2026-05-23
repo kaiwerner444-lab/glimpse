@@ -30,6 +30,7 @@ import {
 } from "@/lib/preferences/comfort";
 import { broadcastComfortChange } from "@/lib/preferences/useComfort";
 import { useRequireAuth } from "@/lib/auth/require-auth";
+import { isDemoEmergency, setDemoEmergency } from "@/lib/alerts/demo-mode";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +49,8 @@ export default function SettingsPage() {
   const [retainRaw, setRetainRaw] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [emergencyDemo, setEmergencyDemo] = useState(false);
+  useEffect(() => setEmergencyDemo(isDemoEmergency()), []);
   const [editingHardware, setEditingHardware] = useState(false);
   const [draftMode, setDraftMode] = useState<GlassesMode | null>(null);
   const [comfortPref, setComfortPref] = useState<ComfortPreference>("auto");
@@ -439,10 +442,30 @@ export default function SettingsPage() {
           </Button>
         </SettingsSection>
 
+        {/* Demo controls — for product reviewers / hackathon judges who
+            want to see the Tier 3 emergency flow without a real session
+            pattern firing it. Honest about being a demo affordance. */}
+        <SettingsSection
+          icon={<AlertTriangle className="h-5 w-5" />}
+          title="Demo controls"
+          subtitle="For previewing flows that don't fire with the small data set."
+          delay={240}
+        >
+          <Checkbox
+            checked={emergencyDemo}
+            onChange={(v) => {
+              setEmergencyDemo(v);
+              setDemoEmergency(v);
+            }}
+            label="Trigger the Tier 3 emergency alert"
+            hint="When on, the dashboard banner and /alerts page render the acute-stroke red-flag flow with the 911 affordance, so you can see the path without a real signal pattern."
+          />
+        </SettingsSection>
+
         {/* Danger zone */}
         <section
           className="glimpse-card p-6 border border-alert/20 animate-stagger-up"
-          style={{ animationDelay: "260ms" }}
+          style={{ animationDelay: "280ms" }}
         >
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-2xl bg-alert/10 text-alert flex items-center justify-center">

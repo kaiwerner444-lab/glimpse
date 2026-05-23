@@ -22,6 +22,14 @@ export function AccountMenu({ className }: AccountMenuProps) {
     if (acc) setEmail(acc.email);
   }, []);
 
+  // First name = local-part of the email, first segment, title-cased.
+  const firstName = email
+    ? (() => {
+        const local = email.split("@")[0].split(/[._-]/)[0] ?? "";
+        return local.charAt(0).toUpperCase() + local.slice(1).toLowerCase();
+      })()
+    : "";
+
   // Close on outside click.
   useEffect(() => {
     if (!open) return;
@@ -77,8 +85,16 @@ export function AccountMenu({ className }: AccountMenuProps) {
             <p className="text-xs text-ink-subtle uppercase tracking-wider font-medium">
               Signed in as
             </p>
+            {firstName ? (
+              <p className="text-sm font-semibold text-ink leading-tight">
+                {firstName}
+              </p>
+            ) : null}
             <p
-              className="text-sm font-medium text-ink truncate"
+              className={cn(
+                "text-xs text-ink-muted truncate",
+                firstName ? "mt-0.5" : "text-sm font-medium text-ink",
+              )}
               title={email}
             >
               {email || "Local session"}

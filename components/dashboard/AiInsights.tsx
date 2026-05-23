@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Sparkles,
   Lightbulb,
   Stethoscope,
   Info,
+  ArrowRight,
 } from "lucide-react";
 import { analyze, type Insight } from "@/lib/ai/analyze";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
@@ -51,7 +53,38 @@ export function AiInsights({ daysSinceStart }: AiInsightsProps) {
     setInsights(generated);
   }, [signals, daysSinceStart]);
 
-  if (insights.length === 0) return null;
+  if (insights.length === 0) {
+    return (
+      <section className="glimpse-card p-6 relative overflow-hidden">
+        <div className="absolute -right-10 -top-12 h-40 w-40 rounded-full bg-brand-50 blur-3xl pointer-events-none" />
+        <div className="relative flex items-start gap-4">
+          <div className="h-10 w-10 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium uppercase tracking-wider text-brand-500 mb-1">
+              Today&apos;s analysis
+            </p>
+            <h2 className="text-lg font-semibold text-ink">
+              Your first analysis lands after your first session
+            </h2>
+            <p className="text-sm text-ink-muted mt-1.5 leading-relaxed">
+              Once you&apos;ve completed a daily session, the analysis layer
+              starts surfacing patterns from your signals here — what&apos;s
+              moving, what&apos;s steady, and what&apos;s worth noticing.
+            </p>
+            <Link
+              href="/session/daily"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-500 hover:text-brand-600"
+            >
+              Start a session
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="glimpse-card p-6 relative overflow-hidden">

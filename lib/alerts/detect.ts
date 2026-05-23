@@ -14,6 +14,7 @@ import {
   loadSessionRecords,
 } from "@/lib/dashboard/session-history";
 import { loadOnboarding } from "@/lib/db/mock-db";
+import { isDemoEmergency } from "./demo-mode";
 import type { TrackedCondition } from "@/lib/types";
 
 interface SignalSummary {
@@ -290,7 +291,33 @@ export interface AlertResult {
   source: "real" | "demo";
 }
 
+// Synthetic emergency for demo flows — set via Settings, lets reviewers
+// see the Tier 3 + 911 banner without a real session pattern firing it.
+function demoEmergencyAlert(): Alert {
+  return {
+    id: "demo-emergency",
+    tier: 3,
+    signalId: "facial-symmetry",
+    signalLabel: "Facial symmetry",
+    direction: "drop",
+    changePercent: -14.2,
+    series: [97, 96.8, 97, 96.6, 96.4, 96.2, 95.8, 95.4, 94.8, 92.5, 89.1, 86.8, 84.4, 83.0],
+    title: "Sudden facial-asymmetry drop",
+    body:
+      "−14.2% from your baseline (96.5%); about 5.3 SD outside your normal day-to-day variation. Pattern matches an acute facial-asymmetry red flag.",
+    recommendation:
+      "If you have new facial drooping, sudden weakness in an arm, or slurred speech right now, call 911 immediately. Stroke care is time-critical.",
+    specialists: specialistsFor("facial-symmetry"),
+    isEmergency: true,
+    detectedAt: new Date().toISOString(),
+    sessionsObserved: 14,
+  };
+}
+
 export function detectAlerts(): AlertResult {
+  if (isDemoEmergency()) {
+    return { alerts: [demoEmergencyAlert(), ...pickFallbackAlerts()], source: "demo" };
+  }
   const real = detectFromHistory();
   if (real.length > 0) return { alerts: real, source: "real" };
   return { alerts: pickFallbackAlerts(), source: "demo" };

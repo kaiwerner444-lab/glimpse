@@ -1,5 +1,6 @@
 import type { Task } from "./types";
 import type { OnboardingState, TrackedCondition } from "@/lib/types";
+import { loadFeedback } from "@/lib/feedback/storage";
 
 // Risk-aware, content-rotating daily session builder.
 //
@@ -506,6 +507,49 @@ function comorbidTask(day: number, ctx: UserContext): Task | null {
 
 // ─── Top-level builder ─────────────────────────────────────────────────
 
+// Feedback-driven filtering. Tasks the user has flagged as too-hard
+// repeatedly get rotated less (every other day). Tasks they've
+// body-issue-flagged get excluded outright until they say otherwise
+// from settings. "Repeatedly" = 2+ too-hard ratings in their history.
+interface FeedbackFilter {
+  exclude: Set<string>;
+  softSkip: Set<string>;
+}
+
+function buildFeedbackFilter(): FeedbackFilter {
+  const feedback = loadFeedback();
+  const exclude = new Set<string>();
+  const tooHardCount = new Map<string, number>();
+  for (const f of feedback) {
+    if (f.bodyIssueFlag) exclude.add(f.taskId);
+    if (f.rating === "too_hard") {
+      tooHardCount.set(f.taskId, (tooHardCount.get(f.taskId) ?? 0) + 1);
+    }
+  }
+  const softSkip = new Set<string>();
+  for (const [id, count] of tooHardCount) {
+    if (count >= 2) softSkip.add(id);
+  }
+  return { exclude, softSkip };
+}
+
+// Strip the per-day suffix so feedback against "daily-speech-passage-d3"
+// still matches the generic "daily-speech-passage" task family.
+function taskFamily(id: string): string {
+  return id.replace(/-d\d+$/, "");
+}
+
+function shouldKeep(task: Task, filter: FeedbackFilter, day: number): boolean {
+  const family = taskFamily(task.id);
+  if (filter.exclude.has(task.id) || filter.exclude.has(family)) return false;
+  if (filter.softSkip.has(task.id) || filter.softSkip.has(family)) {
+    // Soft-skip: only include on even days, so it rotates less without
+    // disappearing entirely.
+    return day % 2 === 0;
+  }
+  return true;
+}
+
 export function buildDailyTasks(context?: UserContext): Task[] {
   const day = new Date().getDay();
   const ctx: UserContext = context ?? {
@@ -513,6 +557,7 @@ export function buildDailyTasks(context?: UserContext): Task[] {
     familyHistory: new Set(),
     confirmedRisks: new Set(),
   };
+  const filter = buildFeedbackFilter();
 
   const speech = buildSpeechTask(day, ctx);
   const movementRot = buildMovementRotation(day, ctx);
@@ -520,7 +565,7 @@ export function buildDailyTasks(context?: UserContext): Task[] {
   const digitSpan = buildDigitSpanTask(day);
   const comorbid = comorbidTask(day, ctx);
 
-  const tasks: Task[] = [
+  const allTasks: Task[] = [
     speech,
     VISUAL_TASK,
     FINGER_TAP_TASK,
@@ -529,8 +574,24 @@ export function buildDailyTasks(context?: UserContext): Task[] {
     digitSpan,
     attention,
   ];
-  if (comorbid) tasks.push(comorbid);
-  return tasks;
+  if (comorbid) allTasks.push(comorbid);
+
+  return allTasks
+    .filter((t) => shouldKeep(t, filter, day))
+    // Tag tasks that survived a too-hard filter with a whyToday so the
+    // user knows we're listening. Only set if not already explained.
+    .map((t) => {
+      const family = taskFamily(t.id);
+      if (filter.softSkip.has(t.id) || filter.softSkip.has(family)) {
+        return {
+          ...t,
+          whyToday:
+            t.whyToday ??
+            "You flagged this as hard recently — it appears less often now, but we still want to keep tracking it.",
+        };
+      }
+      return t;
+    });
 }
 
 // Static export captures the build-time day. Pages should call

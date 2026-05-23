@@ -12,7 +12,9 @@ import {
   signIn,
   resendConfirmation,
   requestPasswordReset,
+  getCurrentAccount,
 } from "@/lib/auth/mock-auth";
+import { useEffect } from "react";
 
 export default function SignInPage() {
   return (
@@ -53,6 +55,14 @@ function SignInForm() {
   const router = useRouter();
   const sp = useSearchParams();
   const redirect = sp.get("redirect") ?? "/home";
+
+  // If they already have a local session, bounce straight through.
+  // Avoids the "sign in to your existing browser session" loop.
+  useEffect(() => {
+    if (getCurrentAccount()) {
+      router.replace(redirect);
+    }
+  }, [router, redirect]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -76,20 +76,10 @@ export default function Home() {
       existing = afterFreezes;
       saveGamification(afterFreezes);
     }
-    if (existing.totalSessions === 0) {
-      const seeded: GamificationState = {
-        ...existing,
-        xp: 280,
-        totalSessions: 12,
-        currentStreak: 5,
-        longestStreak: 7,
-        weeklyChallengeProgress: 3,
-        achievements: ["first-step", "three-day"],
-      };
-      setGame(seeded);
-    } else {
-      setGame(existing);
-    }
+    // No more demo-seeding of bogus counts. A fresh user honestly
+    // starts at 0 XP / 0 sessions / 0 streak. The UI's empty-state
+    // copy carries the rest of the weight.
+    setGame(existing);
   }, []);
 
   const level = levelFromXp(game.xp);
@@ -240,7 +230,7 @@ export default function Home() {
             body="Read through your past answers, per-task scores, and what was captured."
           />
           <QuickLink
-            href="/home#share"
+            href="/family"
             icon={<Users className="h-5 w-5" />}
             title="Family access"
             body="Share a read-only view with up to three trusted people."
