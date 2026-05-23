@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Shield, Activity, Eye } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
+import { MetaVision } from "@/components/landing/MetaVision";
 import { loadOnboarding } from "@/lib/db/mock-db";
 
 export default function Landing() {
@@ -66,7 +67,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-20">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-16">
           <FeatureTile
             icon={<Eye className="h-5 w-5" />}
             title="Five minutes a day"
@@ -82,6 +83,10 @@ export default function Landing() {
             title="HIPAA-grade privacy"
             body="Raw audio and video are processed and discarded. Only derived features are kept, and you can delete everything at any time."
           />
+        </section>
+
+        <section className="pb-20">
+          <MetaVision />
         </section>
       </main>
 
