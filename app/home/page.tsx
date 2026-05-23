@@ -11,12 +11,23 @@ import { SessionPrompt } from "@/components/dashboard/SessionPrompt";
 import { LearningPath } from "@/components/dashboard/LearningPath";
 import { FeedbackModule } from "@/components/dashboard/FeedbackModule";
 import { ShareModule } from "@/components/dashboard/ShareModule";
+import { LevelBadge } from "@/components/dashboard/LevelBadge";
+import { WeeklyChallenge } from "@/components/dashboard/WeeklyChallenge";
+import { AchievementsGrid } from "@/components/dashboard/AchievementsGrid";
+import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
+import {
+  emptyState,
+  loadGamification,
+  levelFromXp,
+} from "@/lib/gamification/state";
+import type { GamificationState } from "@/lib/gamification/types";
 
 export default function Home() {
   const [name, setName] = useState<string>("");
   const [daysSinceStart, setDaysSinceStart] = useState<number>(0);
+  const [game, setGame] = useState<GamificationState>(() => emptyState());
   const series = useMemo(() => buildSignalSeries(), []);
 
   useEffect(() => {
@@ -35,11 +46,27 @@ export default function Home() {
       );
       setDaysSinceStart(days);
     }
+
+    // Hydrate gamification, seeding a plausible starting state for the demo
+    // when nothing exists yet — so the leaderboard and level badge feel alive.
+    const existing = loadGamification();
+    if (existing.totalSessions === 0) {
+      const seeded: GamificationState = {
+        ...existing,
+        xp: 280,
+        totalSessions: 12,
+        currentStreak: 5,
+        longestStreak: 7,
+        weeklyChallengeProgress: 3,
+        achievements: ["first-step", "three-day"],
+      };
+      setGame(seeded);
+    } else {
+      setGame(existing);
+    }
   }, []);
 
-  // Stub adherence — 5/7 day streak, 12 total sessions, looks alive.
-  const streakDays = 5;
-  const totalSessions = 12;
+  const level = levelFromXp(game.xp);
 
   return (
     <div className="min-h-dvh bg-surface-alt">
@@ -59,12 +86,23 @@ export default function Home() {
               taskCount={6}
             />
           </div>
-          <StreakBadge days={streakDays} totalSessions={totalSessions} />
+          <StreakBadge
+            days={game.currentStreak}
+            totalSessions={game.totalSessions}
+          />
+        </div>
+
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 animate-stagger-up"
+          style={{ animationDelay: "100ms" }}
+        >
+          <LevelBadge xp={game.xp} />
+          <WeeklyChallenge progress={game.weeklyChallengeProgress} />
         </div>
 
         <section
           className="animate-stagger-up"
-          style={{ animationDelay: "120ms" }}
+          style={{ animationDelay: "180ms" }}
         >
           <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
             <div>
@@ -88,7 +126,7 @@ export default function Home() {
               <div
                 key={s.id}
                 className="animate-stagger-up"
-                style={{ animationDelay: `${180 + i * 60}ms` }}
+                style={{ animationDelay: `${220 + i * 60}ms` }}
               >
                 <SignalCard series={s} />
               </div>
@@ -98,22 +136,35 @@ export default function Home() {
 
         <div
           className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-stagger-up"
-          style={{ animationDelay: "360ms" }}
+          style={{ animationDelay: "380ms" }}
         >
           <LearningPath daysSinceStart={Math.max(daysSinceStart, 4)} />
-          <FeedbackModule />
+          <FriendsPanel
+            yourName={name || "You"}
+            yourStreak={game.currentStreak}
+            yourSessionsThisWeek={game.weeklyChallengeProgress}
+            yourLevel={level.level}
+          />
         </div>
 
         <div
           className="animate-stagger-up"
-          style={{ animationDelay: "420ms" }}
+          style={{ animationDelay: "440ms" }}
         >
+          <AchievementsGrid unlockedIds={game.achievements} />
+        </div>
+
+        <div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-stagger-up"
+          style={{ animationDelay: "500ms" }}
+        >
+          <FeedbackModule />
           <ShareModule />
         </div>
 
         <div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-up"
-          style={{ animationDelay: "440ms" }}
+          style={{ animationDelay: "560ms" }}
         >
           <QuickLink
             href="#"
