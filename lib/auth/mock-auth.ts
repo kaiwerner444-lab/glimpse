@@ -1,13 +1,16 @@
-// Mock authentication layer. Swap out for Clerk by replacing this module —
-// the rest of the app only depends on the exported function signatures.
+// Auth layer. Hybrid: writes localStorage as the source of truth in the
+// browser, and mirrors to Supabase Auth + the `accounts` table when env
+// vars are present. Falls back gracefully when they aren't so the app
+// builds and runs in local-only mode for previews.
 
 import type { Account, Sex, FitzpatrickEthnicityHint } from "@/lib/types";
+import { supabase } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "glimpse.account";
 
 export interface SignUpInput {
   email: string;
-  password: string; // unused in mock; here to keep the shape stable
+  password: string;
   dateOfBirth: string;
   sex: Sex;
   heightCm: number;
@@ -17,9 +20,38 @@ export interface SignUpInput {
   gdprConsent: boolean;
 }
 
-export function signUp(input: SignUpInput): Account {
+export async function signUp(input: SignUpInput): Promise<Account> {
+  let id = crypto.randomUUID();
+
+  const sb = supabase();
+  if (sb) {
+    // Best-effort Supabase signup. If email confirmation is on in the
+    // Supabase project, the session will be null until the user confirms.
+    // We still proceed locally so the onboarding flow isn't blocked.
+    const { data, error } = await sb.auth.signUp({
+      email: input.email,
+      password: input.password,
+    });
+    if (!error && data.user) {
+      id = data.user.id;
+      // Mirror demographic data to the accounts table. RLS allows this
+      // because auth.uid() now equals data.user.id.
+      await sb.from("accounts").upsert({
+        id,
+        email: input.email,
+        date_of_birth: input.dateOfBirth,
+        sex: input.sex,
+        height_cm: input.heightCm,
+        weight_kg: input.weightKg,
+        ethnicity_hint: input.ethnicityHint,
+        hipaa_consent: input.hipaaConsent,
+        gdpr_consent: input.gdprConsent,
+      });
+    }
+  }
+
   const account: Account = {
-    id: crypto.randomUUID(),
+    id,
     email: input.email,
     dateOfBirth: input.dateOfBirth,
     sex: input.sex,
@@ -30,6 +62,7 @@ export function signUp(input: SignUpInput): Account {
     gdprConsent: input.gdprConsent,
     createdAt: new Date().toISOString(),
   };
+
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
   }
@@ -42,7 +75,12 @@ export function getCurrentAccount(): Account | null {
   return raw ? (JSON.parse(raw) as Account) : null;
 }
 
-export function signOut(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+export async function signOut(): Promise<void> {
+  const sb = supabase();
+  if (sb) {
+    await sb.auth.signOut();
+  }
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
 }

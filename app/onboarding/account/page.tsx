@@ -67,22 +67,26 @@ export default function AccountStep() {
 
   const valid = Object.keys(errors).length === 0;
 
-  const onContinue = () => {
+  const onContinue = async () => {
     if (!valid) return;
     setSubmitting(true);
-    const account = signUp({
-      email,
-      password,
-      dateOfBirth: dob,
-      sex,
-      heightCm: Number(heightCm),
-      weightKg: Number(weightKg),
-      ethnicityHint: ethnicity,
-      hipaaConsent: hipaa,
-      gdprConsent: gdpr,
-    });
-    update({ account, step: "glasses" });
-    router.push("/onboarding/glasses");
+    try {
+      const account = await signUp({
+        email,
+        password,
+        dateOfBirth: dob,
+        sex,
+        heightCm: Number(heightCm),
+        weightKg: Number(weightKg),
+        ethnicityHint: ethnicity,
+        hipaaConsent: hipaa,
+        gdprConsent: gdpr,
+      });
+      update({ account, step: "glasses" });
+      router.push("/onboarding/glasses");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
