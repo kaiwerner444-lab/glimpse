@@ -19,6 +19,7 @@ import {
   disconnect,
   loadConnections,
 } from "@/lib/integrations/storage";
+import { SensorDataPanel } from "./SensorDataPanel";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_ICON: Record<SensorCategory, React.ReactNode> = {
@@ -88,7 +89,7 @@ export function SensorIntegrations() {
               className={cn(
                 "rounded-2xl border p-4 transition",
                 connected
-                  ? "border-brand-500/40 bg-brand-50/50"
+                  ? "border-brand-500/40 bg-brand-50/50 sm:col-span-2"
                   : "border-black/[0.06] bg-surface",
               )}
             >
@@ -140,6 +141,7 @@ export function SensorIntegrations() {
                   <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
+              {connected ? <SensorDataPanel sensor={s} /> : null}
             </li>
           );
         })}
