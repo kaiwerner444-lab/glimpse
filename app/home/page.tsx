@@ -1,105 +1,187 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Sunrise, BarChart3, Users, Settings } from "lucide-react";
+import { Settings, Users, FileText, ChevronRight } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { Greeting } from "@/components/dashboard/Greeting";
+import { SignalCard } from "@/components/dashboard/SignalCard";
+import { StreakBadge } from "@/components/dashboard/StreakBadge";
+import { SessionPrompt } from "@/components/dashboard/SessionPrompt";
+import { LearningPath } from "@/components/dashboard/LearningPath";
+import { FeedbackModule } from "@/components/dashboard/FeedbackModule";
 import { loadOnboarding } from "@/lib/db/mock-db";
+import { buildSignalSeries } from "@/lib/dashboard/synth-data";
 
 export default function Home() {
   const [name, setName] = useState<string>("");
+  const [daysSinceStart, setDaysSinceStart] = useState<number>(0);
+  const series = useMemo(() => buildSignalSeries(), []);
 
   useEffect(() => {
     const state = loadOnboarding();
     if (state.account?.email) {
       const local = state.account.email.split("@")[0];
-      setName(local.replace(/[._-]/g, " "));
+      setName(capitalize(local.replace(/[._-]/g, " ").split(" ")[0]));
+    }
+    if (state.completedAt) {
+      const days = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(state.completedAt).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ),
+      );
+      setDaysSinceStart(days);
     }
   }, []);
 
+  // Stub adherence — 5/7 day streak, 12 total sessions, looks alive.
+  const streakDays = 5;
+  const totalSessions = 12;
+
   return (
     <div className="min-h-dvh bg-surface-alt">
-      <header className="px-6 py-5 max-w-3xl w-full mx-auto flex items-center justify-between">
-        <Logo />
-        <Link
-          href="/onboarding/account"
-          className="text-sm text-ink-muted hover:text-ink"
+      <Header />
+
+      <main className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-8 sm:gap-10">
+        <Greeting name={name} />
+
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 animate-stagger-up"
+          style={{ animationDelay: "60ms" }}
         >
-          <Settings className="inline h-4 w-4 mr-1" />
-          Profile
-        </Link>
-      </header>
+          <div className="lg:col-span-2">
+            <SessionPrompt
+              available
+              scheduledLabel="Now · five-minute window open"
+              taskCount={6}
+            />
+          </div>
+          <StreakBadge days={streakDays} totalSessions={totalSessions} />
+        </div>
 
-      <main className="px-6 max-w-3xl w-full mx-auto py-10 animate-fade-up">
-        <p className="text-sm font-medium uppercase tracking-wider text-brand-500 mb-2">
-          Welcome to Glimpse
-        </p>
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-ink">
-          {name ? `You're all set, ${capitalize(name)}.` : "You're all set."}
-        </h1>
-        <p className="mt-3 text-lg text-ink-muted">
-          Your first session begins tomorrow morning. We&apos;ll send a gentle
-          reminder.
-        </p>
+        <section
+          className="animate-stagger-up"
+          style={{ animationDelay: "120ms" }}
+        >
+          <div className="flex items-end justify-between gap-3 mb-4 flex-wrap">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-wider text-brand-500">
+                Your signals
+              </p>
+              <h2 className="text-2xl font-semibold text-ink leading-tight">
+                The last fourteen days, at a glance
+              </h2>
+            </div>
+            <Link
+              href="#"
+              className="text-sm font-medium text-brand-500 hover:text-brand-600 inline-flex items-center gap-1"
+            >
+              View full report
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            {series.map((s, i) => (
+              <div
+                key={s.id}
+                className="animate-stagger-up"
+                style={{ animationDelay: `${180 + i * 60}ms` }}
+              >
+                <SignalCard series={s} />
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StubTile
-            icon={<Sunrise className="h-5 w-5" />}
-            title="Daily session"
-            body="Five minute mirror ritual"
-            note="Coming next build"
-          />
-          <StubTile
-            icon={<BarChart3 className="h-5 w-5" />}
+        <div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-stagger-up"
+          style={{ animationDelay: "360ms" }}
+        >
+          <LearningPath daysSinceStart={Math.max(daysSinceStart, 4)} />
+          <FeedbackModule />
+        </div>
+
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-up"
+          style={{ animationDelay: "440ms" }}
+        >
+          <QuickLink
+            href="#"
+            icon={<FileText className="h-5 w-5" />}
             title="Reports"
-            body="Weekly trends & monthly summary"
-            note="Stubbed"
+            body="Weekly trends and monthly summaries you can share with a clinician."
           />
-          <StubTile
+          <QuickLink
+            href="#"
             icon={<Users className="h-5 w-5" />}
             title="Family access"
-            body="Share with caregivers"
-            note="Stubbed"
+            body="Share a read-only view with up to three trusted people."
           />
         </div>
 
-        <div className="mt-10 text-sm text-ink-muted">
+        <footer className="text-sm text-ink-muted leading-relaxed pt-2">
           Glimpse is a wellness and clinical decision support tool. It does
           not diagnose disease. In an emergency, call 911.
-        </div>
+        </footer>
       </main>
     </div>
   );
 }
 
-function StubTile({
+function Header() {
+  return (
+    <header className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-5 flex items-center justify-between">
+      <Logo />
+      <nav className="flex items-center gap-1 text-sm">
+        <Link
+          href="/clinician"
+          className="px-3 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
+        >
+          For clinicians
+        </Link>
+        <Link
+          href="#"
+          aria-label="Settings"
+          className="px-2 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
+        >
+          <Settings className="h-4 w-4" />
+        </Link>
+      </nav>
+    </header>
+  );
+}
+
+function QuickLink({
+  href,
   icon,
   title,
   body,
-  note,
 }: {
+  href: string;
   icon: React.ReactNode;
   title: string;
   body: string;
-  note: string;
 }) {
   return (
-    <div className="glimpse-card p-5">
-      <div className="h-10 w-10 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center mb-3">
+    <Link
+      href={href}
+      className="glimpse-card p-5 group transition hover:shadow-card flex items-center gap-4"
+    >
+      <div className="h-12 w-12 rounded-2xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
         {icon}
       </div>
-      <h3 className="text-base font-semibold text-ink">{title}</h3>
-      <p className="text-sm text-ink-muted mt-1">{body}</p>
-      <p className="text-xs uppercase tracking-wider text-ink-subtle mt-3">
-        {note}
-      </p>
-    </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-base font-semibold text-ink">{title}</p>
+        <p className="text-sm text-ink-muted mt-0.5 leading-snug">{body}</p>
+      </div>
+      <ChevronRight className="h-5 w-5 text-ink-subtle group-hover:text-brand-500 group-hover:translate-x-0.5 transition" />
+    </Link>
   );
 }
 
 function capitalize(s: string) {
-  return s
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

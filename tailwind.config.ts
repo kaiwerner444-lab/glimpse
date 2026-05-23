@@ -41,8 +41,17 @@ const config: Config = {
         },
         // Reserved exclusively for Tier 3 specialist referral flags.
         alert: "#C0392B",
-        warn: "#B7791F", // Tier 2 suggestion
+        warn: "#B7791F", // Tier 2 suggestion / "watch this" on dashboard
         success: "#2F855A",
+        // Warm support accents — used for encouragement and "someone's with you" moments.
+        sunrise: {
+          50: "#FFF8EE",
+          100: "#FFEFD7",
+          200: "#FFDDA9",
+          300: "#FFC773",
+          400: "#F2A347",
+          500: "#D88424",
+        },
       },
       fontFamily: {
         sans: [
@@ -73,9 +82,39 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "glimpse-pulse": {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.04)" },
+        },
+        "iris-shimmer": {
+          "0%, 100%": { transform: "translateX(-30%)" },
+          "50%": { transform: "translateX(30%)" },
+        },
+        "draw-line": {
+          "0%": { strokeDashoffset: "var(--line-length, 200)" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        "horizon-glow": {
+          "0%, 100%": { opacity: "0.35" },
+          "50%": { opacity: "0.6" },
+        },
+        "stagger-up": {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease-out both",
+        "fade-in": "fade-in 0.6s ease-out both",
+        "glimpse-pulse": "glimpse-pulse 4s ease-in-out infinite",
+        "iris-shimmer": "iris-shimmer 6s ease-in-out infinite",
+        "draw-line": "draw-line 1.4s ease-out both",
+        "horizon-glow": "horizon-glow 6s ease-in-out infinite",
+        "stagger-up": "stagger-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },
   },
