@@ -33,6 +33,13 @@ export class AudioFeatureExtractor {
   attach(stream: MediaStream) {
     if (this.ctx) return;
     this.ctx = new AudioContext();
+    // Chrome can return a suspended context if the page hasn't received
+    // a user gesture yet; the SessionRunner mount IS triggered by one
+    // (clicking 'Begin session') but the resume is still required on
+    // some browsers, so we ask explicitly.
+    if (this.ctx.state === "suspended") {
+      void this.ctx.resume();
+    }
     this.source = this.ctx.createMediaStreamSource(stream);
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 2048;
@@ -58,7 +65,11 @@ export class AudioFeatureExtractor {
     if (!this.analyser || !this.ctx) return null;
     this.analyser.getFloatTimeDomainData(this.buffer);
     const energy = rms(this.buffer);
-    const pitchHz = energy > 0.02 ? autocorrelatePitch(this.buffer, this.ctx.sampleRate) : null;
+    // Looser energy floor — a normal speaking voice at arm's length
+    // through a built-in laptop mic often sits around 0.008-0.015 RMS.
+    // The old 0.02 threshold ignored most of it.
+    const pitchHz =
+      energy > 0.006 ? autocorrelatePitch(this.buffer, this.ctx.sampleRate) : null;
     const voiced = pitchHz !== null && pitchHz > 70 && pitchHz < 400;
 
     this.totalFrames += 1;
@@ -116,7 +127,7 @@ function autocorrelatePitch(buf: Float32Array, sampleRate: number): number | nul
       corr += buf[i] * buf[i + offset];
     }
     corr = corr / (SIZE - offset);
-    if (corr > 0.9 && corr > lastCorr) {
+    if (corr > 0.5 && corr > lastCorr) {
       if (corr > bestCorr) {
         bestCorr = corr;
         bestOffset = offset;
@@ -126,6 +137,8 @@ function autocorrelatePitch(buf: Float32Array, sampleRate: number): number | nul
     }
     lastCorr = corr;
   }
-  if (bestOffset === -1 || bestCorr < 0.5) return null;
+  // Slightly more permissive correlation floor so quieter, less periodic
+  // speech still registers as voiced.
+  if (bestOffset === -1 || bestCorr < 0.3) return null;
   return sampleRate / bestOffset;
 }

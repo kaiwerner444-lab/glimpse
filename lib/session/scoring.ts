@@ -126,9 +126,29 @@ function scoreSpeechTask(
   const voiced = features?.voicedRatio ?? 0;
   const transcript = result.speechTranscript;
   const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : null;
+  const hasFeatures = Boolean(features?.framesAnalysed && features.framesAnalysed > 0);
 
-  // Base score from voiced ratio — proxy for engagement.
-  let score = clamp(voiced * 100);
+  // No voice signal AND no transcript despite completing the task —
+  // this is almost always a mic-permission or browser-API issue, not
+  // a real "failed task". Surface that honestly with a fair score
+  // instead of 0/100.
+  if (voiced === 0 && wordCount === null) {
+    if (!hasFeatures) {
+      return {
+        score: 70,
+        note: "Couldn't measure audio — check that we have microphone permission, then try this task again.",
+      };
+    }
+    return {
+      score: 65,
+      note: "Audio captured but no voice was detected. Speak a bit louder next time, or move closer to the mic.",
+    };
+  }
+
+  // Base score from voiced ratio — proxy for engagement. Add a floor of
+  // 40 for completed tasks so a noisy environment doesn't tank the
+  // number unfairly.
+  let score = clamp(Math.max(40, voiced * 100));
   const parts: string[] = [];
   if (wordCount !== null) {
     parts.push(`Captured ${wordCount} words`);
@@ -137,7 +157,7 @@ function scoreSpeechTask(
     const target = kind === "math" ? 10 : 20;
     if (wordCount >= target) score = clamp(score + 8);
   } else {
-    parts.push("Acoustic features only (no transcript)");
+    parts.push("Voice detected (transcript not available in this browser)");
   }
   if (features?.meanPitchHz) {
     parts.push(`mean pitch ${features.meanPitchHz.toFixed(0)} Hz`);
