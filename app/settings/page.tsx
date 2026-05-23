@@ -15,7 +15,12 @@ import {
   Info,
   CheckCircle2,
   AlertTriangle,
+  Camera,
+  ExternalLink,
 } from "lucide-react";
+import { RadioGroup } from "@/components/ui/RadioGroup";
+import { saveOnboarding } from "@/lib/db/mock-db";
+import type { GlassesMode } from "@/lib/types";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,6 +37,26 @@ export default function SettingsPage() {
   const [retainRaw, setRetainRaw] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [editingHardware, setEditingHardware] = useState(false);
+  const [draftMode, setDraftMode] = useState<GlassesMode | null>(null);
+
+  const saveHardware = (mode: GlassesMode) => {
+    if (!state) return;
+    const next: OnboardingState = {
+      ...state,
+      glasses: {
+        mode,
+        pairedAt:
+          mode === "ray_ban_meta" || mode === "phone_fallback"
+            ? new Date().toISOString()
+            : undefined,
+      },
+    };
+    saveOnboarding(next);
+    setState(next);
+    setEditingHardware(false);
+    setDraftMode(null);
+  };
 
   useEffect(() => {
     setState(loadOnboarding());
@@ -132,46 +157,142 @@ export default function SettingsPage() {
         <SettingsSection
           icon={<Glasses className="h-5 w-5" />}
           title="Hardware"
-          subtitle="Glasses pairing and recording devices."
+          subtitle="Update what you use to capture the daily session."
           delay={100}
         >
-          <div className="rounded-xl border border-black/[0.06] bg-surface-alt p-4 flex items-center gap-3">
-            {state?.glasses?.mode === "ray_ban_meta" ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                <div>
-                  <p className="text-base font-medium text-ink">
-                    Meta Ray Ban
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    Paired during onboarding · Bluetooth + camera + IMU
-                  </p>
+          {!editingHardware ? (
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {state?.glasses?.mode === "ray_ban_meta" ? (
+                  <>
+                    <Glasses className="h-5 w-5 text-success shrink-0" />
+                    <div>
+                      <p className="text-base font-medium text-ink">
+                        Meta Ray Ban (deferred)
+                      </p>
+                      <p className="text-sm text-ink-muted">
+                        Live streaming from consumer Ray Ban Meta isn't yet
+                        possible — using phone camera until Meta ships a public SDK.
+                      </p>
+                    </div>
+                  </>
+                ) : state?.glasses?.mode === "phone_fallback" ? (
+                  <>
+                    <Camera className="h-5 w-5 text-success shrink-0" />
+                    <div>
+                      <p className="text-base font-medium text-ink">
+                        Phone / laptop camera
+                      </p>
+                      <p className="text-sm text-ink-muted">
+                        Front camera, requested at session start.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-warn shrink-0" />
+                    <div>
+                      <p className="text-base font-medium text-ink">
+                        No hardware paired
+                      </p>
+                      <p className="text-sm text-ink-muted">
+                        Pick one below or run a daily session — we'll request
+                        camera access then.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDraftMode(state?.glasses?.mode ?? null);
+                  setEditingHardware(true);
+                }}
+              >
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-fade-up">
+              <RadioGroup<GlassesMode>
+                name="hardware-mode"
+                value={draftMode}
+                onChange={setDraftMode}
+                options={[
+                  {
+                    value: "phone_fallback",
+                    label: "Phone / laptop camera",
+                    description:
+                      "Works today. MediaPipe runs on the front-camera stream — every signal currently active uses this path.",
+                    icon: <Camera className="h-5 w-5" />,
+                  },
+                  {
+                    value: "ray_ban_meta",
+                    label: "Meta Ray Ban (when available)",
+                    description:
+                      "Consumer Ray Ban Meta does not yet expose live camera/audio/IMU to third-party apps. We'll flip this on the moment Meta ships a public SDK — until then, we still use the phone camera.",
+                    icon: <Glasses className="h-5 w-5" />,
+                  },
+                  {
+                    value: "deferred",
+                    label: "Decide later",
+                    description:
+                      "Sessions can't capture anything until you pick one.",
+                  },
+                ]}
+              />
+
+              {draftMode === "ray_ban_meta" ? (
+                <div className="rounded-xl bg-warn/10 border border-warn/20 p-4 text-sm text-ink leading-relaxed">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-warn shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-warn mb-1">
+                        Honest note about Meta Ray Ban
+                      </p>
+                      <p className="text-ink-muted">
+                        Meta has not released a public SDK that lets third-party
+                        web apps stream from consumer Ray Ban Meta glasses in
+                        real time. The Meta AI app pairs over Bluetooth and can
+                        pull captured media after the fact, but nothing exposes
+                        a live feed today. Glimpse will pick this up the moment
+                        Meta ships developer access — until then, your sessions
+                        run on the phone/laptop camera regardless.
+                      </p>
+                      <a
+                        href="https://developers.meta.com/wearables/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-warn hover:underline mt-2"
+                      >
+                        Meta wearables developer page
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
                 </div>
-              </>
-            ) : state?.glasses?.mode === "phone_fallback" ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                <div>
-                  <p className="text-base font-medium text-ink">Phone fallback</p>
-                  <p className="text-sm text-ink-muted">
-                    Using your device's front camera during sessions.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-5 w-5 text-warn shrink-0" />
-                <div>
-                  <p className="text-base font-medium text-ink">
-                    No hardware paired
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    Run a daily session — we'll request camera access then.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+              ) : null}
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={() => draftMode && saveHardware(draftMode)}
+                  disabled={!draftMode}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingHardware(false);
+                    setDraftMode(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </SettingsSection>
 
         {/* Notifications */}
