@@ -17,6 +17,8 @@ import { AchievementsGrid } from "@/components/dashboard/AchievementsGrid";
 import { FriendsPanel } from "@/components/dashboard/FriendsPanel";
 import { AccountMenu } from "@/components/dashboard/AccountMenu";
 import { HabitAndFreeze } from "@/components/dashboard/HabitAndFreeze";
+import { AiInsights } from "@/components/dashboard/AiInsights";
+import { SensorIntegrations } from "@/components/dashboard/SensorIntegrations";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import { buildSignalSeries } from "@/lib/dashboard/synth-data";
@@ -144,8 +146,15 @@ export default function Home() {
         </section>
 
         <div
+          className="animate-stagger-up"
+          style={{ animationDelay: "340ms" }}
+        >
+          <AiInsights daysSinceStart={Math.max(daysSinceStart, 4)} />
+        </div>
+
+        <div
           className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 animate-stagger-up"
-          style={{ animationDelay: "380ms" }}
+          style={{ animationDelay: "400ms" }}
         >
           <LearningPath daysSinceStart={Math.max(daysSinceStart, 4)} />
           <FriendsPanel
@@ -176,6 +185,13 @@ export default function Home() {
         >
           <FeedbackModule />
           <ShareModule />
+        </div>
+
+        <div
+          className="animate-stagger-up"
+          style={{ animationDelay: "540ms" }}
+        >
+          <SensorIntegrations />
         </div>
 
         <div

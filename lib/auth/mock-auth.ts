@@ -72,6 +72,8 @@ export async function signUp(input: SignUpInput): Promise<Account> {
 export interface SignInResult {
   ok: boolean;
   error?: string;
+  // Surface specific cases so the UI can offer a recovery action.
+  kind?: "unconfirmed_email" | "bad_credentials" | "other";
 }
 
 export async function signIn(
@@ -80,18 +82,41 @@ export async function signIn(
 ): Promise<SignInResult> {
   const sb = supabase();
   if (!sb) {
-    return { ok: false, error: "Supabase is not configured." };
+    return { ok: false, error: "Supabase is not configured.", kind: "other" };
   }
   const { data, error } = await sb.auth.signInWithPassword({
     email,
     password,
   });
   if (error || !data.session) {
-    return {
-      ok: false,
-      error: error?.message ?? "Sign in failed. Check your email and password.",
-    };
+    const msg = error?.message ?? "Sign in failed.";
+    const lower = msg.toLowerCase();
+    let kind: SignInResult["kind"] = "other";
+    if (lower.includes("confirm")) kind = "unconfirmed_email";
+    else if (lower.includes("invalid login") || lower.includes("invalid credentials"))
+      kind = "bad_credentials";
+    return { ok: false, error: msg, kind };
   }
+  return { ok: true };
+}
+
+export async function resendConfirmation(email: string): Promise<{ ok: boolean; error?: string }> {
+  const sb = supabase();
+  if (!sb) return { ok: false, error: "Supabase is not configured." };
+  const { error } = await sb.auth.resend({ type: "signup", email });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function requestPasswordReset(
+  email: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const sb = supabase();
+  if (!sb) return { ok: false, error: "Supabase is not configured." };
+  const redirectTo =
+    typeof window !== "undefined" ? `${window.location.origin}/auth/signin` : undefined;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
