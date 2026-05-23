@@ -22,7 +22,11 @@ import { SensorIntegrations } from "@/components/dashboard/SensorIntegrations";
 import { CompleteAssessmentBanner } from "@/components/dashboard/CompleteAssessmentBanner";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
-import { buildSignalSeries } from "@/lib/dashboard/synth-data";
+import {
+  buildSignalSeriesFromHistory,
+  onSessionSaved,
+  type RealSeriesResult,
+} from "@/lib/dashboard/session-history";
 import {
   emptyState,
   loadGamification,
@@ -35,7 +39,13 @@ export default function Home() {
   const [name, setName] = useState<string>("");
   const [daysSinceStart, setDaysSinceStart] = useState<number>(0);
   const [game, setGame] = useState<GamificationState>(() => emptyState());
-  const series = useMemo(() => buildSignalSeries(), []);
+  const [seriesResult, setSeriesResult] = useState<RealSeriesResult | null>(null);
+  useEffect(() => {
+    const sync = () => setSeriesResult(buildSignalSeriesFromHistory());
+    sync();
+    return onSessionSaved(sync);
+  }, []);
+  const series = seriesResult?.series ?? [];
 
   useEffect(() => {
     const state = loadOnboarding();
@@ -123,8 +133,15 @@ export default function Home() {
                 Your signals
               </p>
               <h2 className="text-2xl font-semibold text-ink leading-tight">
-                The last fourteen days, at a glance
+                {seriesResult?.source === "real"
+                  ? `From your last ${seriesResult.sessionCount} ${seriesResult.sessionCount === 1 ? "session" : "sessions"}`
+                  : "The last fourteen days, at a glance"}
               </h2>
+              {seriesResult?.source === "demo" ? (
+                <p className="text-xs text-ink-muted mt-1">
+                  Demo data · complete a daily session to see your real signals.
+                </p>
+              ) : null}
             </div>
             <Link
               href="/reports"

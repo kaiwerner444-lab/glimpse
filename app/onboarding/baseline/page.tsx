@@ -13,6 +13,7 @@ import {
 } from "@/lib/session/baseline";
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
+import { saveSessionRecord } from "@/lib/dashboard/session-history";
 import { cn } from "@/lib/utils";
 
 type Stage = "intro" | "running" | "done";
@@ -59,6 +60,15 @@ export default function BaselineStep() {
             setResults(r);
             setFeatures(f);
             setFullyCompleted(true);
+            // Persist real ML features + interaction results so the
+            // dashboard signal charts have a real first point.
+            saveSessionRecord({
+              id: crypto.randomUUID(),
+              completedAt: new Date().toISOString(),
+              kind: "baseline",
+              features: f,
+              results: r,
+            });
             setStage("done");
           }}
           onSkipAll={() => {

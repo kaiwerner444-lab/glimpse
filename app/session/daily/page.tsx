@@ -11,6 +11,7 @@ import { buildDailyTasks, buildUserContext } from "@/lib/session/daily";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { recordSession, loadGamification, saveGamification, levelFromXp } from "@/lib/gamification/state";
 import { useRequireAuth } from "@/lib/auth/require-auth";
+import { saveSessionRecord } from "@/lib/dashboard/session-history";
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
 
@@ -33,6 +34,16 @@ export default function DailySession() {
   const onComplete = (r: TaskResult[], f: TaskFeatures[]) => {
     setResults(r);
     setFeatures(f);
+    // Persist the real ML features + interaction results to the
+    // session-history store. The dashboard reads from here next render
+    // so the new data point lands on every chart.
+    saveSessionRecord({
+      id: crypto.randomUUID(),
+      completedAt: new Date().toISOString(),
+      kind: "daily",
+      features: f,
+      results: r,
+    });
     // Award XP + check level-up + unlock achievements.
     const prev = loadGamification();
     const prevLevel = levelFromXp(prev.xp).level;

@@ -24,6 +24,7 @@ import {
   buildLongSignalSeries,
   percentChange,
 } from "@/lib/dashboard/synth-data";
+import { buildSignalSeriesFromHistory } from "@/lib/dashboard/session-history";
 import { loadGamification } from "@/lib/gamification/state";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
@@ -89,7 +90,14 @@ export default function ReportsPage() {
   }, [feedback]);
 
   const days = windowChoice === "week" ? 7 : 30;
-  const series = useMemo(() => buildLongSignalSeries(0, days), [days]);
+  // Prefer real session-derived signals when the user has completed at
+  // least one session; otherwise fall back to the long demo series so
+  // the report still renders end-to-end before any data is captured.
+  const series = useMemo(() => {
+    const real = buildSignalSeriesFromHistory(days);
+    if (real.source === "real") return real.series;
+    return buildLongSignalSeries(0, days);
+  }, [days]);
 
   const movers = useMemo(() => {
     const withDelta = series.map((s) => ({
