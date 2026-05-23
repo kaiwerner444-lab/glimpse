@@ -6,7 +6,7 @@
 
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export type ShareScope = "reports" | "reports_and_videos";
 
@@ -22,6 +22,10 @@ export interface ShareRecord {
   viewCount: number;
   createdAt: string;
 }
+
+export type CreateShareResult =
+  | { ok: true; record: ShareRecord }
+  | { ok: false; reason: "no_config" | "no_session" | "db_error"; message: string };
 
 interface CreateShareInput {
   recipientLabel: string;
@@ -40,11 +44,33 @@ function generateToken(): string {
 
 export async function createShare(
   input: CreateShareInput,
-): Promise<ShareRecord | null> {
+): Promise<CreateShareResult> {
+  if (!isSupabaseConfigured()) {
+    return {
+      ok: false,
+      reason: "no_config",
+      message:
+        "Supabase env vars aren't set on this build. Add them in Vercel and redeploy.",
+    };
+  }
   const sb = supabase();
-  if (!sb) return null;
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return null;
+  if (!sb) {
+    return {
+      ok: false,
+      reason: "no_config",
+      message: "Supabase client unavailable.",
+    };
+  }
+
+  const { data: userData } = await sb.auth.getUser();
+  if (!userData.user) {
+    return {
+      ok: false,
+      reason: "no_session",
+      message:
+        "You're not signed into Supabase on this device. Confirm your email from onboarding, or sign in to enable sharing.",
+    };
+  }
 
   const token = generateToken();
   const expiresAt = new Date(
@@ -54,7 +80,7 @@ export async function createShare(
   const { data, error } = await sb
     .from("shares")
     .insert({
-      owner_id: user.id,
+      owner_id: userData.user.id,
       token,
       recipient_label: input.recipientLabel,
       recipient_email: input.recipientEmail ?? null,
@@ -63,8 +89,15 @@ export async function createShare(
     })
     .select()
     .single();
-  if (error || !data) return null;
-  return rowToRecord(data);
+
+  if (error || !data) {
+    return {
+      ok: false,
+      reason: "db_error",
+      message: error?.message ?? "Insert failed without a message.",
+    };
+  }
+  return { ok: true, record: rowToRecord(data) };
 }
 
 export async function listShares(): Promise<ShareRecord[]> {

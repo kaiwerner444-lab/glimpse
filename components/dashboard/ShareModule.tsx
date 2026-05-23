@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Share2,
   Plus,
@@ -10,6 +11,8 @@ import {
   Users,
   ShieldOff,
   Eye,
+  AlertTriangle,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,6 +35,11 @@ export function ShareModule() {
   const [scope, setScope] = useState<ShareScope>("reports");
   const [recentCopiedId, setRecentCopiedId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [submitError, setSubmitError] = useState<{
+    reason: "no_config" | "no_session" | "db_error";
+    message: string;
+  } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const configured = isSupabaseConfigured();
 
   useEffect(() => {
@@ -49,19 +57,24 @@ export function ShareModule() {
 
   const submit = async () => {
     if (!label.trim()) return;
-    const created = await createShare({
+    setSubmitError(null);
+    setSubmitting(true);
+    const result = await createShare({
       recipientLabel: label.trim(),
       recipientEmail: email.trim() || undefined,
       scope,
       expiresInDays: 14,
     });
-    if (created) {
-      setShares((prev) => [created, ...prev]);
+    setSubmitting(false);
+    if (result.ok) {
+      setShares((prev) => [result.record, ...prev]);
       setLabel("");
       setEmail("");
       setScope("reports");
       setAdding(false);
+      return;
     }
+    setSubmitError({ reason: result.reason, message: result.message });
   };
 
   const handleCopy = async (s: ShareRecord) => {
@@ -169,13 +182,39 @@ export function ShareModule() {
             </button>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            <Button onClick={submit} disabled={!label.trim() || !configured}>
-              Create link
+            <Button
+              onClick={submit}
+              disabled={!label.trim() || !configured || submitting}
+            >
+              {submitting ? "Creating…" : "Create link"}
             </Button>
             <Button variant="ghost" onClick={() => setAdding(false)}>
               Cancel
             </Button>
           </div>
+
+          {submitError ? (
+            <div className="rounded-xl bg-warn/10 border border-warn/20 p-4 flex items-start gap-3 mt-2">
+              <AlertTriangle className="h-5 w-5 text-warn shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-ink mb-1">
+                  Couldn&apos;t create the link
+                </p>
+                <p className="text-sm text-ink-muted leading-relaxed">
+                  {submitError.message}
+                </p>
+                {submitError.reason === "no_session" ? (
+                  <Link
+                    href="/auth/signin?redirect=/home"
+                    className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-500 hover:text-brand-600"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Sign in to Supabase
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <Button

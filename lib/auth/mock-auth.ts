@@ -69,6 +69,32 @@ export async function signUp(input: SignUpInput): Promise<Account> {
   return account;
 }
 
+export interface SignInResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function signIn(
+  email: string,
+  password: string,
+): Promise<SignInResult> {
+  const sb = supabase();
+  if (!sb) {
+    return { ok: false, error: "Supabase is not configured." };
+  }
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error || !data.session) {
+    return {
+      ok: false,
+      error: error?.message ?? "Sign in failed. Check your email and password.",
+    };
+  }
+  return { ok: true };
+}
+
 export function getCurrentAccount(): Account | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(STORAGE_KEY);
