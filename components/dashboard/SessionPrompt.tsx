@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Sunrise, Clock, Play } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -5,15 +6,16 @@ interface SessionPromptProps {
   available: boolean;
   scheduledLabel: string;
   taskCount: number;
+  href: string;
 }
 
 // The "today's session" call to action. When the session window is open
-// we surface a primary CTA; otherwise we show a soft countdown so the
-// user knows what's next without feeling nagged.
+// we surface a primary CTA that routes into the session runner.
 export function SessionPrompt({
   available,
   scheduledLabel,
   taskCount,
+  href,
 }: SessionPromptProps) {
   return (
     <div className="relative overflow-hidden glimpse-card p-6 sm:p-7">
@@ -42,10 +44,12 @@ export function SessionPrompt({
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {available ? (
-            <Button size="lg" className="gap-2">
-              <Play className="h-4 w-4" />
-              Begin session
-            </Button>
+            <Link href={href}>
+              <Button size="lg" className="gap-2">
+                <Play className="h-4 w-4" />
+                Begin session
+              </Button>
+            </Link>
           ) : (
             <Button variant="secondary" size="lg">
               Reschedule

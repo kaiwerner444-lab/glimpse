@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Task, StroopTrial, TaskResult } from "@/lib/session/types";
+import { useReactions } from "./Reactions";
 
 interface TaskRendererProps {
   task: Task;
@@ -39,17 +40,16 @@ export function TaskRenderer({
         />
       );
     case "finger_tap":
-      return (
-        <FingerTapTask
-          hand={task.hand}
-          onUpdate={onInteractionUpdate}
-        />
-      );
+      return <FingerTapTask hand={task.hand} onUpdate={onInteractionUpdate} />;
     case "digit_span":
       return (
         <DigitSpanTask
           direction={task.direction}
           digits={task.digits}
+          memorizeSeconds={task.memorizeSeconds ?? 5}
+          recallSeconds={task.recallSeconds ?? 8}
+          minLength={task.minLength ?? 4}
+          maxLength={task.maxLength ?? 7}
           onUpdate={onInteractionUpdate}
         />
       );
@@ -63,7 +63,6 @@ export function TaskRenderer({
 // ─── Task-specific UIs ─────────────────────────────────────────────────
 
 function InstructionTask() {
-  // The shell already shows the title + instruction. Add a calm visual cue.
   return (
     <div className="flex items-center justify-center py-8">
       <div className="h-24 w-24 rounded-full bg-brand-50 flex items-center justify-center">
@@ -135,7 +134,6 @@ function SmoothPursuitTask({
   elapsedSeconds: number;
   durationSeconds: number;
 }) {
-  // The dot traces a slow, predictable horizontal sweep.
   const progress = (elapsedSeconds / durationSeconds) * Math.PI * 2;
   const x = 50 + 42 * Math.sin(progress);
   return (
@@ -155,11 +153,25 @@ function FingerTapTask({
   hand: "left" | "right";
   onUpdate?: (patch: Partial<TaskResult>) => void;
 }) {
+  const { push } = useReactions();
   const [count, setCount] = useState(0);
+  // Milestone reactions, fired once each per task.
+  const fired = useRef<Set<number>>(new Set());
+
   const handleTap = () => {
     setCount((c) => {
       const next = c + 1;
       onUpdate?.({ fingerTapCount: next });
+      if (next === 20 && !fired.current.has(20)) {
+        push({ text: "Nice rhythm", tone: "neutral", emoji: "sparkle" });
+        fired.current.add(20);
+      } else if (next === 40 && !fired.current.has(40)) {
+        push({ text: "Steady — good", tone: "success", emoji: "check" });
+        fired.current.add(40);
+      } else if (next === 60 && !fired.current.has(60)) {
+        push({ text: "Strong pace", tone: "success", emoji: "check" });
+        fired.current.add(60);
+      }
       return next;
     });
   };
@@ -176,77 +188,270 @@ function FingerTapTask({
       >
         {count}
       </button>
-      <p className="text-sm text-ink-muted">
-        Tap as fast as you can
-      </p>
+      <p className="text-sm text-ink-muted">Tap as fast as you can</p>
     </div>
   );
 }
+
+// ─── Digit Span (memorise → hide → recall, multi-trial) ──────────────
+
+type DigitPhase = "memorize" | "recall" | "feedback";
 
 function DigitSpanTask({
   direction,
   digits,
+  memorizeSeconds,
+  recallSeconds,
+  minLength,
+  maxLength,
   onUpdate,
 }: {
   direction: "forward" | "backward";
   digits: number[];
+  memorizeSeconds: number;
+  recallSeconds: number;
+  minLength: number;
+  maxLength: number;
   onUpdate?: (patch: Partial<TaskResult>) => void;
 }) {
-  const [showAnswer, setShowAnswer] = useState(false);
+  const { push } = useReactions();
+  const [trial, setTrial] = useState(0);
+  const [phase, setPhase] = useState<DigitPhase>("memorize");
+  const [phaseElapsed, setPhaseElapsed] = useState(0);
   const [answer, setAnswer] = useState("");
+  const [lastResult, setLastResult] = useState<
+    null | { correct: boolean; expected: string; given: string }
+  >(null);
+  const correctCount = useRef(0);
+  const totalCount = useRef(0);
+
+  // Generate the current trial's sequence by sampling a sub-array.
+  // Length grows with each trial, capped at maxLength.
+  const sequence = useMemo(() => {
+    const len = Math.min(maxLength, minLength + trial);
+    // Deterministic pick: use trial as a rotation offset over the pool.
+    const out: number[] = [];
+    for (let i = 0; i < len; i += 1) {
+      out.push(digits[(i + trial * 3) % digits.length]);
+    }
+    return out;
+  }, [trial, digits, minLength, maxLength]);
+
   const expected = useMemo(
-    () => (direction === "forward" ? digits : [...digits].reverse()).join(""),
-    [direction, digits],
+    () =>
+      (direction === "forward" ? sequence : [...sequence].reverse()).join(""),
+    [direction, sequence],
   );
-  const correct = answer.replace(/\s/g, "") === expected;
+
+  // Drive the phase clock.
+  useEffect(() => {
+    setPhaseElapsed(0);
+    if (phase === "memorize") {
+      const id = setInterval(() => setPhaseElapsed((e) => e + 1), 1000);
+      return () => clearInterval(id);
+    }
+    if (phase === "recall") {
+      const id = setInterval(() => setPhaseElapsed((e) => e + 1), 1000);
+      return () => clearInterval(id);
+    }
+    return undefined;
+  }, [phase, trial]);
+
+  // Auto-advance phases.
+  useEffect(() => {
+    if (phase === "memorize" && phaseElapsed >= memorizeSeconds) {
+      setPhase("recall");
+    } else if (phase === "recall" && phaseElapsed >= recallSeconds) {
+      grade();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, phaseElapsed]);
+
+  function grade() {
+    const given = answer.replace(/\s/g, "");
+    const correct = given === expected;
+    totalCount.current += 1;
+    if (correct) correctCount.current += 1;
+    setLastResult({ correct, expected, given });
+    onUpdate?.({
+      digitSpanAnswer: given,
+      stroopCorrect: correctCount.current,
+      stroopTotal: totalCount.current,
+    });
+    if (correct) {
+      push({ text: "Spot on", tone: "success", emoji: "check" });
+    } else if (given.length > 0 && hammingClose(given, expected)) {
+      push({
+        text: "Close — your baseline learns this",
+        tone: "gentle",
+        emoji: "heart",
+      });
+    } else {
+      push({
+        text: "That's okay, we're still learning your normal",
+        tone: "gentle",
+        emoji: "heart",
+      });
+    }
+    setPhase("feedback");
+    // Briefly show feedback, then advance.
+    setTimeout(() => {
+      setAnswer("");
+      setLastResult(null);
+      setTrial((t) => t + 1);
+      setPhase("memorize");
+    }, 1800);
+  }
+
+  const memorizeProgress = Math.min(1, phaseElapsed / memorizeSeconds);
+  const recallProgress = Math.min(1, phaseElapsed / recallSeconds);
 
   return (
-    <div className="flex flex-col items-center gap-5 py-2">
-      <p className="text-sm uppercase tracking-wider text-ink-muted">
-        Memorise these digits
-      </p>
-      <div className="flex gap-2 sm:gap-3 flex-wrap justify-center">
-        {digits.map((d, i) => (
-          <span
-            key={i}
-            className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-surface border border-black/10 flex items-center justify-center text-3xl sm:text-4xl font-semibold text-ink tabular-nums"
-          >
-            {d}
-          </span>
-        ))}
+    <div className="flex flex-col items-center gap-5 py-2 min-h-[280px]">
+      <div className="flex items-center gap-3">
+        <p className="text-sm uppercase tracking-wider text-ink-muted">
+          Trial {trial + 1}
+        </p>
+        <span className="text-xs text-ink-subtle tabular-nums">
+          {correctCount.current} of {totalCount.current} correct so far
+        </span>
       </div>
-      <p className="text-sm text-ink-muted">
-        {direction === "forward"
-          ? "Type them in the same order"
-          : "Type them in reverse order"}
-      </p>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={answer}
-        onChange={(e) => {
-          const v = e.target.value.replace(/[^0-9]/g, "");
-          setAnswer(v);
-          setShowAnswer(false);
-          onUpdate?.({ digitSpanAnswer: v });
-        }}
-        onBlur={() => setShowAnswer(true)}
-        placeholder="e.g. 7294618"
-        className="text-center text-2xl font-semibold h-14 w-64 rounded-xl border border-black/10 bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 tracking-widest"
-      />
-      {showAnswer && answer ? (
-        <p
+
+      {phase === "memorize" ? (
+        <>
+          <div className="flex gap-2 sm:gap-3 flex-wrap justify-center">
+            {sequence.map((d, i) => (
+              <span
+                key={`${trial}-${i}`}
+                className={cn(
+                  "h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-surface border border-black/10 flex items-center justify-center text-3xl sm:text-4xl font-semibold text-ink tabular-nums animate-fade-up",
+                )}
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+          <PhaseTimer
+            label="memorise"
+            remaining={memorizeSeconds - phaseElapsed}
+            progress={memorizeProgress}
+          />
+        </>
+      ) : null}
+
+      {phase === "recall" ? (
+        <>
+          <div className="flex gap-2 sm:gap-3 flex-wrap justify-center">
+            {sequence.map((_, i) => (
+              <span
+                key={`${trial}-hidden-${i}`}
+                className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-ink/90 flex items-center justify-center text-white text-2xl font-semibold animate-fade-in"
+              >
+                ?
+              </span>
+            ))}
+          </div>
+          <p className="text-sm text-ink-muted">
+            {direction === "forward"
+              ? "Type them in the same order"
+              : "Type them in reverse order"}
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              grade();
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="text"
+              inputMode="numeric"
+              autoFocus
+              value={answer}
+              onChange={(e) =>
+                setAnswer(e.target.value.replace(/[^0-9]/g, ""))
+              }
+              placeholder={`e.g. ${expected}`}
+              className="text-center text-2xl font-semibold h-14 w-64 rounded-xl border border-black/10 bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 tracking-widest"
+            />
+            <button
+              type="submit"
+              className="h-14 px-5 rounded-xl bg-brand-500 text-white font-semibold hover:bg-brand-600 transition"
+            >
+              Enter
+            </button>
+          </form>
+          <PhaseTimer
+            label="recall"
+            remaining={recallSeconds - phaseElapsed}
+            progress={recallProgress}
+          />
+        </>
+      ) : null}
+
+      {phase === "feedback" && lastResult ? (
+        <div
           className={cn(
-            "text-sm font-medium",
-            correct ? "text-success" : "text-warn",
+            "rounded-2xl px-6 py-4 text-center w-full max-w-md animate-fade-up",
+            lastResult.correct
+              ? "bg-success/10 text-success"
+              : "bg-sunrise-50 text-sunrise-500",
           )}
         >
-          {correct ? "Matches" : "We'll keep this as your baseline"}
-        </p>
+          <p className="text-sm font-medium uppercase tracking-wider">
+            {lastResult.correct ? "Spot on" : "Captured"}
+          </p>
+          <p className="text-2xl font-semibold mt-1 tracking-widest tabular-nums">
+            {lastResult.expected}
+          </p>
+          {!lastResult.correct && lastResult.given ? (
+            <p className="text-sm text-ink-muted mt-1">
+              You said: <span className="font-semibold">{lastResult.given}</span>
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
 }
+
+function PhaseTimer({
+  label,
+  remaining,
+  progress,
+}: {
+  label: string;
+  remaining: number;
+  progress: number;
+}) {
+  return (
+    <div className="w-full max-w-xs flex flex-col items-center gap-1.5">
+      <div className="h-1 w-full bg-black/[0.06] rounded-full overflow-hidden">
+        <div
+          className="h-full bg-brand-500 transition-[width] duration-1000 ease-linear"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+      <p className="text-xs text-ink-subtle tabular-nums">
+        {label} · {Math.max(0, remaining)}s
+      </p>
+    </div>
+  );
+}
+
+function hammingClose(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let diffs = 0;
+  const max = Math.max(a.length, b.length);
+  for (let i = 0; i < max; i += 1) {
+    if (a[i] !== b[i]) diffs += 1;
+    if (diffs > 1) return false;
+  }
+  return diffs <= 1;
+}
+
+// ─── Stroop with reactions ───────────────────────────────────────────
 
 function StroopTask({
   trials,
@@ -255,11 +460,17 @@ function StroopTask({
   trials: StroopTrial[];
   onUpdate?: (patch: Partial<TaskResult>) => void;
 }) {
+  const { push } = useReactions();
   const [index, setIndex] = useState(0);
   const correctRef = useRef(0);
+  const streakRef = useRef(0);
   const trial = trials[Math.min(index, trials.length - 1)];
 
-  const COLORS: Array<{ value: StroopTrial["color"]; cls: string; label: string }> = [
+  const COLORS: Array<{
+    value: StroopTrial["color"];
+    cls: string;
+    label: string;
+  }> = [
     { value: "red", cls: "bg-red-500", label: "Red" },
     { value: "blue", cls: "bg-blue-500", label: "Blue" },
     { value: "green", cls: "bg-green-500", label: "Green" },
@@ -274,7 +485,23 @@ function StroopTask({
   };
 
   const pick = (c: StroopTrial["color"]) => {
-    if (c === trial.color) correctRef.current += 1;
+    const isRight = c === trial.color;
+    if (isRight) {
+      correctRef.current += 1;
+      streakRef.current += 1;
+      if (streakRef.current === 3) {
+        push({ text: "Three in a row — nice", tone: "success", emoji: "check" });
+      } else if (streakRef.current === 6) {
+        push({ text: "Lovely streak", tone: "success", emoji: "sparkle" });
+      } else if (streakRef.current === 1 && index > 0) {
+        // First correct after a miss — keep it gentle.
+      }
+    } else {
+      streakRef.current = 0;
+      if (index % 4 === 3) {
+        push({ text: "That's okay, keep going", tone: "gentle", emoji: "heart" });
+      }
+    }
     const next = index + 1;
     setIndex(next);
     onUpdate?.({
@@ -301,9 +528,10 @@ function StroopTask({
       </p>
       <p
         className={cn(
-          "text-6xl sm:text-7xl font-extrabold tracking-tight select-none",
+          "text-6xl sm:text-7xl font-extrabold tracking-tight select-none transition-opacity animate-fade-up",
           COLOR_TEXT[trial.color],
         )}
+        key={index}
       >
         {trial.word}
       </p>

@@ -83,7 +83,8 @@ export default function Home() {
             <SessionPrompt
               available
               scheduledLabel="Now · five-minute window open"
-              taskCount={6}
+              taskCount={5}
+              href="/session/daily"
             />
           </div>
           <StreakBadge

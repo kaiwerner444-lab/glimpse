@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { CameraPreview } from "./CameraPreview";
 import { TaskRenderer } from "./TaskRenderer";
+import { ReactionProvider } from "./Reactions";
 import { cn } from "@/lib/utils";
 import type { Task, TaskResult, Phase } from "@/lib/session/types";
 import { TaskExtractor, type TaskFeatures } from "@/lib/ml/extractor";
@@ -214,6 +215,7 @@ export function SessionRunner({
   const overallProgress = ((index + taskProgress) / totalTasks) * 100;
 
   return (
+    <ReactionProvider>
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -324,6 +326,7 @@ export function SessionRunner({
         />
       )}
     </div>
+    </ReactionProvider>
   );
 }
 

@@ -106,6 +106,17 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(16px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "reaction-toast": {
+          "0%": { opacity: "0", transform: "translateY(-6px) scale(0.92)" },
+          "15%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "70%": { opacity: "1", transform: "translateY(0) scale(1)" },
+          "100%": { opacity: "0", transform: "translateY(-6px) scale(0.96)" },
+        },
+        "sparkle-pop": {
+          "0%": { opacity: "0", transform: "scale(0.4) rotate(0deg)" },
+          "30%": { opacity: "1", transform: "scale(1.1) rotate(20deg)" },
+          "100%": { opacity: "0", transform: "scale(0.6) rotate(40deg) translateY(-12px)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.4s ease-out both",
@@ -115,6 +126,8 @@ const config: Config = {
         "draw-line": "draw-line 1.4s ease-out both",
         "horizon-glow": "horizon-glow 6s ease-in-out infinite",
         "stagger-up": "stagger-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "reaction-toast": "reaction-toast 1.8s cubic-bezier(0.22, 1, 0.36, 1) both",
+        "sparkle-pop": "sparkle-pop 1.2s ease-out both",
       },
     },
   },

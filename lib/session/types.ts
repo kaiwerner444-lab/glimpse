@@ -34,7 +34,14 @@ export type Task =
   | (BaseTask & {
       kind: "digit_span";
       direction: "forward" | "backward";
+      // Pool to draw trial sequences from. We pick a sub-array of growing
+      // length per trial — first trial uses 4 digits, then 5, then 6...
       digits: number[];
+      // Optional overrides; sensible defaults applied in the renderer.
+      memorizeSeconds?: number;
+      recallSeconds?: number;
+      minLength?: number;
+      maxLength?: number;
     })
   | (BaseTask & { kind: "stroop"; trials: StroopTrial[] });
 
