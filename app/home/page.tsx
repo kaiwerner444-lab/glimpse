@@ -20,6 +20,7 @@ import { HabitAndFreeze } from "@/components/dashboard/HabitAndFreeze";
 import { AiInsights } from "@/components/dashboard/AiInsights";
 import { SensorIntegrations } from "@/components/dashboard/SensorIntegrations";
 import { CompleteAssessmentBanner } from "@/components/dashboard/CompleteAssessmentBanner";
+import { AlertBanner } from "@/components/dashboard/AlertBanner";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import {
@@ -95,6 +96,7 @@ export default function Home() {
 
       <main className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-8 sm:gap-10">
         <CompleteAssessmentBanner />
+        <AlertBanner />
         <Greeting name={name} />
 
         <div
