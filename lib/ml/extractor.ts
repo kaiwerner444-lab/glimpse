@@ -9,7 +9,7 @@
 import type { Task } from "@/lib/session/types";
 import { detectFaceFeatures } from "./face";
 import { detectPoseFeatures, resetPoseState } from "./pose";
-import { detectHandFeatures } from "./hand";
+import { detectHandFeatures, resetHandState } from "./hand";
 import { AudioFeatureExtractor } from "./audio";
 
 export interface TaskFeatures {
@@ -62,6 +62,10 @@ export class TaskExtractor {
   private wasClosed = false;
   private tapCount = 0;
   private tapTimestamps: number[] = [];
+  // Minimum time between taps. Real fast tapping tops out around
+  // 8-9 Hz (≈110ms). 70ms gives headroom for that without admitting
+  // jitter-driven double counts.
+  private static readonly TAP_REFRACTORY_MS = 70;
 
   // Audio
   private audio = new AudioFeatureExtractor();
@@ -77,6 +81,7 @@ export class TaskExtractor {
     this.video = video;
     this.callbacks = callbacks;
     resetPoseState();
+    resetHandState();
     if (audioStream && this.needsAudio()) {
       this.audio.attach(audioStream);
       this.audio.resetSession();
@@ -120,7 +125,12 @@ export class TaskExtractor {
         if (this.needsHand()) {
           const h = await detectHandFeatures(this.video, ts);
           if (h) {
-            if (h.thumbIndexClosed && !this.wasClosed) {
+            // Rising edge with refractory period so a single physical
+            // tap can't count twice if the model flickers.
+            const lastTap = this.tapTimestamps[this.tapTimestamps.length - 1];
+            const enoughGap =
+              lastTap === undefined || ts - lastTap >= TaskExtractor.TAP_REFRACTORY_MS;
+            if (h.thumbIndexClosed && !this.wasClosed && enoughGap) {
               this.tapCount += 1;
               this.tapTimestamps.push(ts);
               this.callbacks.onTap?.();

@@ -26,6 +26,12 @@ async function ensureHandLandmarker(): Promise<HandLandmarker> {
       },
       runningMode: "VIDEO",
       numHands: 2,
+      // Looser detection thresholds so the model picks up the hand
+      // even when it's partially out of frame or at an angle (common
+      // for self-cam finger-tap tasks).
+      minHandDetectionConfidence: 0.4,
+      minHandPresenceConfidence: 0.4,
+      minTrackingConfidence: 0.4,
     });
     landmarker = model;
     return model;
@@ -35,12 +41,22 @@ async function ensureHandLandmarker(): Promise<HandLandmarker> {
 
 export interface HandFrameFeatures {
   // Distance between thumb tip (4) and index tip (8), normalized to hand size.
-  // Lower = pinched together. We treat low-then-high transitions as taps.
+  // Lower = pinched together.
   pinchDistance: number;
   thumbIndexClosed: boolean;
 }
 
-const PINCH_CLOSED_THRESHOLD = 0.08;
+// Hysteresis pair: must drop below the closed threshold to register a
+// pinch, must rise above the open threshold to be considered released.
+// Prevents jitter near a single threshold from double-counting or
+// missing taps. Values widened from the original 0.08 single threshold
+// so faster real-world taps land cleanly.
+const PINCH_CLOSED_THRESHOLD = 0.16;
+const PINCH_OPEN_THRESHOLD = 0.26;
+
+// Per-hand last-known state. The hysteresis state machine reads this to
+// decide whether the current frame is a transition.
+const lastState = new Map<number, "open" | "closed" | "unknown">();
 
 export async function detectHandFeatures(
   video: HTMLVideoElement,
@@ -69,10 +85,24 @@ export async function detectHandFeatures(
   );
   const pinchDistance = handSpan > 0 ? dist / handSpan : dist;
 
+  // Hysteresis state machine — only flip when we cross the right edge.
+  const prev = lastState.get(handIndex) ?? "unknown";
+  let next: "open" | "closed";
+  if (prev === "closed") {
+    next = pinchDistance > PINCH_OPEN_THRESHOLD ? "open" : "closed";
+  } else {
+    next = pinchDistance < PINCH_CLOSED_THRESHOLD ? "closed" : "open";
+  }
+  lastState.set(handIndex, next);
+
   return {
     pinchDistance,
-    thumbIndexClosed: pinchDistance < PINCH_CLOSED_THRESHOLD,
+    thumbIndexClosed: next === "closed",
   };
+}
+
+export function resetHandState() {
+  lastState.clear();
 }
 
 export function disposeHandLandmarker() {

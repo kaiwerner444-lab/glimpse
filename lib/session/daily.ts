@@ -1,20 +1,16 @@
 import type { Task } from "./types";
 
 // Daily five-minute task list. Built around four phases — speech, visual,
-// movement, cognitive — with one rotating balance task so the same
-// exercise isn't measured every single day (better drift detection
-// across modalities, and avoids habituation).
-//
-// In v2 the rotation is driven by the user's risk profile + recent drift
-// signals: Parkinson's-risk users get more finger tapping and tremor
-// checks, fall-risk users get more single-leg stance, cardiovascular get
-// more sit-to-stand. v1 uses day-of-week.
+// movement, cognitive — with a per-phase rotation so each day's session
+// feels distinct. In v2 the rotation is driven by the user's risk
+// profile + recent drift signals; v1 uses day-of-week.
 
-const BASE_TASKS: Task[] = [
-  // ─── SPEECH (~45s) ──────────────────────────────────────────────────
+// ─── SPEECH rotation ───────────────────────────────────────────────────
+const SPEECH_TASKS: Task[] = [
+  // Sunday + Wednesday — passage read
   {
     kind: "read_passage",
-    id: "daily-passage",
+    id: "daily-speech-passage",
     phase: "speech",
     title: "Read this aloud",
     instruction: "Speak at your normal pace.",
@@ -23,52 +19,94 @@ const BASE_TASKS: Task[] = [
     passage:
       "Light came through the window in pale, even bars. Outside, the river ran slow and dark. She thought about the walk she would take after breakfast, the one with the long bend in the road and the small white bridge.",
   },
-
-  // ─── VISUAL (~15s) ──────────────────────────────────────────────────
+  // Monday + Thursday — diadochokinesis (PD/ALS/MS speech-motor probe)
   {
-    kind: "instruction",
-    id: "daily-smile",
-    phase: "visual",
-    title: "Smile and hold",
+    kind: "diadochokinesis",
+    id: "daily-speech-ddk",
+    phase: "speech",
+    title: "Say 'Pa-Ta-Ka' as fast as you can",
     instruction:
-      "Give a comfortable smile. Hold it until the timer ends.",
-    durationSeconds: 15,
-    modality: "video",
+      "Repeat the three syllables cleanly and rapidly until the timer ends.",
+    syllable: "pa-ta-ka",
+    durationSeconds: 20,
+    modality: "audio",
   },
-
-  // ─── MOVEMENT (~55s) ────────────────────────────────────────────────
-  // Finger taps every day — that one's quick and high-information.
+  // Tuesday + Friday — verbal fluency (Alzheimer's / MCI screen)
   {
-    kind: "finger_tap",
-    id: "daily-tap-right",
-    phase: "movement",
-    title: "Quick finger tap — right hand",
+    kind: "verbal_fluency",
+    id: "daily-speech-fluency",
+    phase: "speech",
+    title: "Name as many as you can",
     instruction:
-      "Tap thumb and index together as fast as you comfortably can.",
-    hand: "right",
-    durationSeconds: 15,
-    modality: "video",
+      "Say out loud as many examples as you can in 30 seconds.",
+    category: "Animals",
+    durationSeconds: 30,
+    modality: "audio",
   },
-  // Arm hold every day — catches early arm drift, takes 15 seconds.
+  // Saturday — counting backward by 7s
   {
-    kind: "instruction",
-    id: "daily-arm-hold",
-    phase: "movement",
-    title: "Arm hold, eyes closed",
+    kind: "countdown_math",
+    id: "daily-speech-countdown",
+    phase: "speech",
+    title: "Count backward by sevens",
     instruction:
-      "Hold both arms straight out in front of you, palms up, eyes closed. Stay relaxed and still until the timer ends.",
-    durationSeconds: 15,
-    modality: "video",
+      "Starting at 100, subtract 7 each time and say the result aloud.",
+    startFrom: 100,
+    subtractBy: 7,
+    durationSeconds: 30,
+    modality: "audio",
   },
-  // <BALANCE_SLOT> — replaced by the rotation below.
 ];
 
-// Rotating balance task. Day-of-week driven so each appears 1–3× per week.
-const BALANCE_ROTATION: Task[] = [
-  // Sunday — light gait
+// Sun 0, Mon 1, Tue 2, Wed 3, Thu 4, Fri 5, Sat 6
+const SPEECH_BY_DAY = [0, 1, 2, 0, 1, 2, 3];
+
+// ─── VISUAL — always the same gentle hold ──────────────────────────────
+const VISUAL_TASK: Task = {
+  kind: "instruction",
+  id: "daily-visual-smile",
+  phase: "visual",
+  title: "Smile and hold",
+  instruction:
+    "Give a comfortable smile. Hold it until the timer ends.",
+  durationSeconds: 15,
+  modality: "video",
+};
+
+// ─── MOVEMENT — finger tap + arm hold + a rotating balance/manual task ─
+const FINGER_TAP_TASK: Task = {
+  kind: "finger_tap",
+  id: "daily-movement-tap-right",
+  phase: "movement",
+  title: "Quick finger tap — right hand",
+  instruction:
+    "Tap thumb and index together as fast as you comfortably can.",
+  hand: "right",
+  durationSeconds: 15,
+  modality: "video",
+};
+
+const ARM_HOLD_TASK: Task = {
+  kind: "instruction",
+  id: "daily-movement-arm-hold",
+  phase: "movement",
+  title: "Arm hold, eyes closed",
+  instruction:
+    "Hold both arms straight out in front of you, palms up, eyes closed. Stay still until the timer ends.",
+  durationSeconds: 15,
+  modality: "video",
+};
+
+// Balance/manual rotation by day:
+//   Mon/Wed/Fri → five sit-to-stands
+//   Tue/Thu     → single-leg stance
+//   Sat         → spiral drawing (PD tremor measure)
+//   Sun         → short gait walk
+const MOVEMENT_ROTATION: Task[] = [
+  // 0: gait walk
   {
     kind: "instruction",
-    id: "daily-balance-gait",
+    id: "daily-movement-gait",
     phase: "movement",
     title: "Walk a few steps and turn",
     instruction:
@@ -76,21 +114,21 @@ const BALANCE_ROTATION: Task[] = [
     durationSeconds: 25,
     modality: "video",
   },
-  // Monday, Wednesday, Friday — sit-to-stand
+  // 1: sit-to-stand
   {
     kind: "instruction",
-    id: "daily-balance-sit-stand",
+    id: "daily-movement-sit-stand",
     phase: "movement",
     title: "Five sit-to-stands",
     instruction:
-      "Sit, then stand fully upright, five times. Move at a comfortable pace — speed isn't the point.",
+      "Sit, then stand fully upright, five times. Move at a comfortable pace.",
     durationSeconds: 30,
     modality: "video",
   },
-  // Tuesday, Thursday, Saturday — single-leg stance
+  // 2: single-leg stance
   {
     kind: "instruction",
-    id: "daily-balance-stance",
+    id: "daily-movement-stance",
     phase: "movement",
     title: "Single-leg stance",
     instruction:
@@ -98,37 +136,45 @@ const BALANCE_ROTATION: Task[] = [
     durationSeconds: 25,
     modality: "video",
   },
-];
-
-// 0=Sun … 6=Sat
-const DAY_TO_BALANCE_INDEX = [0, 1, 2, 1, 2, 1, 2];
-
-function balanceTaskForToday(): Task {
-  const day = new Date().getDay();
-  return BALANCE_ROTATION[DAY_TO_BALANCE_INDEX[day]];
-}
-
-// ─── COGNITIVE (~105s) ────────────────────────────────────────────────
-const COGNITIVE_TASKS: Task[] = [
+  // 3: spiral drawing (PD tremor)
   {
-    kind: "digit_span",
-    id: "daily-span",
-    phase: "cognitive",
-    title: "Repeat the digits in order",
+    kind: "spiral_drawing",
+    id: "daily-movement-spiral",
+    phase: "movement",
+    title: "Trace the spiral",
     instruction:
-      "Memorise the digits, then type them when they hide. A few rounds, each one a digit longer.",
-    direction: "forward",
-    digits: [4, 9, 2, 7, 5, 1, 8, 3],
-    memorizeSeconds: 5,
-    recallSeconds: 8,
-    minLength: 4,
-    maxLength: 6,
-    durationSeconds: 60,
+      "Use your finger (or mouse) to trace the dotted spiral from the centre outward. Take it at a calm pace.",
+    turns: 3,
+    durationSeconds: 30,
     modality: "none",
   },
+];
+
+const MOVEMENT_BY_DAY = [0, 1, 2, 1, 2, 1, 3];
+
+// ─── COGNITIVE — digit span + rotating attention task ──────────────────
+const DIGIT_SPAN_TASK: Task = {
+  kind: "digit_span",
+  id: "daily-cognitive-span",
+  phase: "cognitive",
+  title: "Repeat the digits in order",
+  instruction:
+    "Memorise the digits, then type them when they hide. A few rounds.",
+  direction: "forward",
+  digits: [4, 9, 2, 7, 5, 1, 8, 3],
+  memorizeSeconds: 5,
+  recallSeconds: 8,
+  minLength: 4,
+  maxLength: 6,
+  durationSeconds: 60,
+  modality: "none",
+};
+
+const ATTENTION_ROTATION: Task[] = [
+  // 0: Stroop
   {
     kind: "stroop",
-    id: "daily-stroop",
+    id: "daily-cognitive-stroop",
     phase: "cognitive",
     title: "Tap the colour of the ink",
     instruction:
@@ -146,15 +192,37 @@ const COGNITIVE_TASKS: Task[] = [
       { word: "BLUE", color: "green" },
     ],
   },
+  // 1: Trail Making B-style sequencing
+  {
+    kind: "trail_making",
+    id: "daily-cognitive-trails",
+    phase: "cognitive",
+    title: "Tap the numbers in order",
+    instruction:
+      "Tap 1, then 2, then 3, and keep going. Speed matters but accuracy matters more.",
+    count: 10,
+    durationSeconds: 60,
+    modality: "none",
+  },
 ];
 
+const ATTENTION_BY_DAY = [0, 1, 0, 1, 0, 1, 0];
+
 export function buildDailyTasks(): Task[] {
-  return [...BASE_TASKS, balanceTaskForToday(), ...COGNITIVE_TASKS];
+  const day = new Date().getDay();
+  return [
+    SPEECH_TASKS[SPEECH_BY_DAY[day]],
+    VISUAL_TASK,
+    FINGER_TAP_TASK,
+    ARM_HOLD_TASK,
+    MOVEMENT_ROTATION[MOVEMENT_BY_DAY[day]],
+    DIGIT_SPAN_TASK,
+    ATTENTION_ROTATION[ATTENTION_BY_DAY[day]],
+  ];
 }
 
-// Static export for places that need a default (route bundle size, etc.).
-// Note this captures the build-time day; clients that want fresh rotation
-// should call buildDailyTasks().
+// Static export — captures the build-time day. Pages should call
+// buildDailyTasks() at render time for the user's local rotation.
 export const DAILY_TASKS: Task[] = buildDailyTasks();
 
 export const DAILY_DURATION_SECONDS = DAILY_TASKS.reduce(
