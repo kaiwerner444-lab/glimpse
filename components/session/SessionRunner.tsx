@@ -395,10 +395,10 @@ function SessionRunnerInner({
           audio={needsAudio}
           video={needsVideo}
           capturing={!paused && !!stream}
-          // Pinned bottom-right on desktop, but on mobile we shrink and
-          // tuck to the bottom-left so the sticky action footer stays
-          // tappable end-to-end without overlap.
-          className="fixed bottom-20 left-4 sm:left-auto sm:right-6 sm:top-20 w-28 h-20 sm:w-44 sm:h-32 z-30"
+          // Mobile: tucked bottom-left so the sticky action footer
+          // stays tappable. Desktop: top-right, larger so the user can
+          // see their reflection clearly during visual + speech tasks.
+          className="fixed bottom-20 left-4 sm:left-auto sm:right-6 sm:top-20 w-40 h-28 sm:w-72 sm:h-52 z-30"
         />
       )}
     </div>
