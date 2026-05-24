@@ -52,6 +52,14 @@ export function scoreTask({
   features,
   educationLevel,
 }: ScoreInputs): TaskScore {
+  // Skipped tasks never report a meaningful score, regardless of what
+  // their handler would otherwise compute. Surface a sentinel score of
+  // null via 0 + the "Skipped" note; the UI treats <40 as the skipped
+  // band.
+  if (result.skipped) {
+    return { score: 0, note: "Skipped." };
+  }
+
   const adj = educationMultiplier(educationLevel);
   const apply = (s: TaskScore): TaskScore => {
     // Only adjust cognitive-loading tasks. Acoustic / movement tasks

@@ -5,11 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Quote,
   Mic,
   Eye,
   Activity,
   Brain,
+  CheckCircle2,
+  CircleSlash,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import {
@@ -19,6 +20,10 @@ import {
 import { averageScore } from "@/lib/session/scoring";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import { Reveal } from "@/components/motion/Reveal";
+import { ScoreRing } from "@/components/dashboard/ScoreRing";
+import { PhaseBreakdown } from "@/components/dashboard/PhaseBreakdown";
+import { TaskViz } from "@/components/dashboard/TaskViz";
+import { taskMetaFor, type TaskMeta } from "@/lib/session/task-names";
 import { cn } from "@/lib/utils";
 import type { TaskResult } from "@/lib/session/types";
 
@@ -36,8 +41,8 @@ export default function SessionDetailPage() {
   const scores = useMemo(
     () =>
       record?.results
-        .map((r) => r.taskScore)
-        .filter((s): s is number => typeof s === "number") ?? [],
+        .filter((r) => !r.skipped && typeof r.taskScore === "number" && r.taskScore > 0)
+        .map((r) => r.taskScore as number) ?? [],
     [record],
   );
   const avg = averageScore(scores);
@@ -45,6 +50,13 @@ export default function SessionDetailPage() {
   if (!ready) {
     return <div className="min-h-dvh bg-surface-alt" aria-busy />;
   }
+
+  const completedCount = record
+    ? record.results.filter((r) => !r.skipped).length
+    : 0;
+  const transcriptCount = record
+    ? record.results.filter((r) => r.speechTranscript).length
+    : 0;
 
   return (
     <div className="min-h-dvh bg-surface-alt">
@@ -64,7 +76,7 @@ export default function SessionDetailPage() {
         </div>
       </header>
 
-      <main className="px-4 sm:px-6 lg:px-8 max-w-4xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-8">
+      <main className="px-4 sm:px-6 lg:px-8 max-w-4xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-6">
         {!record ? (
           <section className="glimpse-card p-8 text-center">
             <p className="text-base text-ink-muted">
@@ -73,29 +85,45 @@ export default function SessionDetailPage() {
           </section>
         ) : (
           <>
+            {/* Hero — score ring + meta */}
             <Reveal>
-              <section>
-                <p className="text-sm font-medium uppercase tracking-wider text-brand-500 mb-2">
-                  Session detail · {record.kind}
-                </p>
-                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-ink">
-                  {formatDate(record.completedAt)}
-                </h1>
-                <div className="mt-4 flex items-center gap-4 flex-wrap">
-                  <Stat label="Overall" value={`${avg}/100`} big />
-                  <Stat
-                    label="Tasks"
-                    value={`${record.results.filter((r) => !r.skipped).length} / ${record.results.length}`}
-                  />
-                  <Stat
-                    label="Captured speech"
-                    value={`${record.results.filter((r) => r.speechTranscript).length} task${record.results.filter((r) => r.speechTranscript).length === 1 ? "" : "s"}`}
-                  />
+              <section className="glimpse-card p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-6">
+                <ScoreRing
+                  value={avg}
+                  label="Overall"
+                  sublabel={`${completedCount} of ${record.results.length} tasks`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-brand-600 mb-2">
+                    Session detail · {record.kind}
+                  </p>
+                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink leading-tight">
+                    {formatDate(record.completedAt)}
+                  </h1>
+                  <dl className="mt-5 grid grid-cols-3 gap-4">
+                    <Stat label="Completed" value={`${completedCount}/${record.results.length}`} />
+                    <Stat
+                      label="Speech captured"
+                      value={`${transcriptCount}`}
+                    />
+                    <Stat
+                      label="Frames analysed"
+                      value={record.features
+                        .reduce((acc, f) => acc + (f.framesAnalysed || 0), 0)
+                        .toLocaleString()}
+                    />
+                  </dl>
                 </div>
               </section>
             </Reveal>
 
-            <section className="flex flex-col gap-3">
+            {/* Phase breakdown */}
+            <Reveal delay={0.06}>
+              <PhaseBreakdown results={record.results} />
+            </Reveal>
+
+            {/* Task list */}
+            <section className="flex flex-col gap-3 mt-2">
               {record.results.map((r, i) => (
                 <Reveal key={r.taskId + i} delay={i * 0.03}>
                   <TaskCard result={r} />
@@ -115,140 +143,102 @@ export default function SessionDetailPage() {
   );
 }
 
-function TaskCard({ result }: { result: TaskResult }) {
-  const score = result.taskScore;
-  const tone =
-    typeof score !== "number"
-      ? "neutral"
-      : score >= 80
-        ? "good"
-        : score >= 60
-          ? "ok"
-          : "watch";
-  const toneCls = {
-    neutral: "bg-black/[0.04] text-ink-muted",
-    good: "bg-success/15 text-success",
-    ok: "bg-brand-50 text-brand-600",
-    watch: "bg-warn/15 text-warn",
-  }[tone];
+const PHASE_ICONS: Record<TaskMeta["phase"], React.ReactNode> = {
+  speech: <Mic className="h-4 w-4" />,
+  visual: <Eye className="h-4 w-4" />,
+  movement: <Activity className="h-4 w-4" />,
+  cognitive: <Brain className="h-4 w-4" />,
+};
 
-  // Map taskId prefix back to phase for the leading icon.
-  const phaseIcon = result.taskId.includes("speech") ? (
-    <Mic className="h-4 w-4" />
-  ) : result.taskId.includes("visual") ? (
-    <Eye className="h-4 w-4" />
-  ) : result.taskId.includes("movement") ? (
-    <Activity className="h-4 w-4" />
-  ) : (
-    <Brain className="h-4 w-4" />
-  );
+function TaskCard({ result }: { result: TaskResult }) {
+  const meta = taskMetaFor(result.taskId);
+  const score = result.taskScore ?? 0;
+
+  const tone =
+    result.skipped
+      ? { badge: "bg-black/[0.05] text-ink-subtle", border: "border-black/[0.04]" }
+      : score >= 80
+        ? { badge: "bg-success/15 text-success", border: "border-success/20" }
+        : score >= 60
+          ? { badge: "bg-brand-50 text-brand-600", border: "border-black/[0.04]" }
+          : { badge: "bg-warn/15 text-warn", border: "border-warn/20" };
 
   return (
     <article
       className={cn(
-        "glimpse-card p-5",
-        result.skipped && "opacity-70",
+        "glimpse-card p-5 transition",
+        result.skipped && "opacity-75",
+        tone.border,
       )}
     >
-      <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="h-9 w-9 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
-            {phaseIcon}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <span className="h-10 w-10 rounded-xl bg-brand-50 text-brand-500 flex items-center justify-center shrink-0">
+            {PHASE_ICONS[meta.phase]}
           </span>
           <div className="min-w-0">
-            <p className="text-base font-semibold text-ink truncate">
-              {prettyTaskId(result.taskId)}
-            </p>
-            <p className="text-xs text-ink-muted mt-0.5">
-              {result.skipped ? "Skipped" : "Completed"}
-              <span className="mx-1.5 text-ink-subtle">·</span>
-              {duration(result.startedAt, result.endedAt)}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-base font-semibold text-ink leading-tight">
+                {meta.name}
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/[0.04] text-ink-muted text-[10px] uppercase tracking-wider font-medium px-2 py-0.5">
+                {meta.phase}
+              </span>
+            </div>
+            <p className="text-xs text-ink-muted mt-1 inline-flex items-center gap-1.5">
+              {result.skipped ? (
+                <>
+                  <CircleSlash className="h-3 w-3" />
+                  Skipped
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-success" />
+                  Completed
+                </>
+              )}
+              <span className="text-ink-subtle">·</span>
+              <span className="tabular-nums">
+                {duration(result.startedAt, result.endedAt)}
+              </span>
             </p>
           </div>
         </div>
         <span
           className={cn(
             "inline-flex items-center justify-center h-9 min-w-[3.5rem] rounded-xl text-sm font-bold tabular-nums px-3 shrink-0",
-            toneCls,
+            tone.badge,
           )}
         >
-          {typeof score === "number" ? score : "—"}
+          {result.skipped ? "—" : score}
         </span>
       </div>
 
-      {result.taskScoreNote ? (
-        <p className="text-sm text-ink-muted leading-relaxed">
+      {/* Task-type-specific visualisation */}
+      <TaskViz result={result} />
+
+      {/* Score note as a tail caption — only when something was actually
+          measured. */}
+      {!result.skipped && result.taskScoreNote ? (
+        <p className="text-sm text-ink-muted leading-relaxed mt-3">
           {result.taskScoreNote}
-        </p>
-      ) : null}
-
-      {result.speechTranscript ? (
-        <div className="mt-3 rounded-xl bg-surface-alt border border-black/[0.04] px-4 py-3 flex items-start gap-2.5">
-          <Quote className="h-4 w-4 text-ink-subtle mt-1 shrink-0" />
-          <p className="text-base text-ink leading-relaxed italic">
-            {result.speechTranscript}
-          </p>
-        </div>
-      ) : null}
-
-      {/* Surface interactive task captures inline */}
-      {typeof result.fingerTapCount === "number" ? (
-        <p className="text-sm text-ink-muted mt-2">
-          Detected pinches: <span className="font-medium text-ink">{result.fingerTapCount}</span>
-        </p>
-      ) : null}
-      {typeof result.stroopCorrect === "number" &&
-      typeof result.stroopTotal === "number" ? (
-        <p className="text-sm text-ink-muted mt-2">
-          Stroop: <span className="font-medium text-ink">{result.stroopCorrect} / {result.stroopTotal}</span>
-        </p>
-      ) : null}
-      {typeof result.trailCompletionSeconds === "number" ? (
-        <p className="text-sm text-ink-muted mt-2">
-          Trail Making: <span className="font-medium text-ink">{result.trailCompletionSeconds.toFixed(1)}s · {result.trailErrors ?? 0} errors</span>
-        </p>
-      ) : null}
-      {typeof result.spiralMeanDeviation === "number" ? (
-        <p className="text-sm text-ink-muted mt-2">
-          Spiral deviation: <span className="font-medium text-ink">{(result.spiralMeanDeviation * 100).toFixed(1)}%</span>
         </p>
       ) : null}
     </article>
   );
 }
 
-function Stat({
-  label,
-  value,
-  big,
-}: {
-  label: string;
-  value: string;
-  big?: boolean;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glimpse-card px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+    <div>
+      <dt className="text-[10px] uppercase tracking-wider text-ink-subtle">
         {label}
-      </p>
-      <p
-        className={cn(
-          "font-semibold text-ink tabular-nums mt-0.5",
-          big ? "text-2xl" : "text-base",
-        )}
-      >
+      </dt>
+      <dd className="text-base font-semibold text-ink tabular-nums mt-0.5">
         {value}
-      </p>
+      </dd>
     </div>
   );
-}
-
-function prettyTaskId(id: string): string {
-  return id
-    .replace(/^daily-|^baseline-|^d\d+$/, "")
-    .replace(/-d\d+$/, "")
-    .replace(/-/g, " ")
-    .replace(/^./, (c) => c.toUpperCase());
 }
 
 function duration(start: string, end: string): string {
