@@ -193,21 +193,26 @@ export function buildSignalSeriesFromHistory(maxPoints = 14): RealSeriesResult {
     };
   }
 
-  const recent = records.slice(-maxPoints);
+  // We keep up to maxPoints-1 real sessions so we have room to prepend
+  // the baseline as the anchor point. The chart always reads as
+  // "baseline → session_1 → ... → session_N", which renders cleanly even
+  // when there's only one real session.
+  const recent = records.slice(-(maxPoints - 1));
   const series: SignalSeries[] = EXTRACTIONS.map((e) => {
-    const points: number[] = [];
+    const realPoints: number[] = [];
     for (const rec of recent) {
       const v = e.extract(rec.features, rec.results);
-      if (v !== null) points.push(round(v));
+      if (v !== null) realPoints.push(round(v));
     }
-    // Need at least one point to render. If a signal never produced any
-    // value across all sessions, skip it from the dashboard.
-    if (points.length === 0) {
-      // Seed with a single baseline point so the chart still renders an
-      // honest "we haven't captured this yet" baseline-only state.
-      points.push(e.baseline);
-    }
-    const direction = computeDirection(points, e.baseline, e.higherIsBetter);
+
+    // Always anchor with the user's baseline. This means a fresh user
+    // sees: 1 session → 2-point chart (baseline → today). 5 sessions →
+    // 6 points. And so on, up to maxPoints. If we have zero real points
+    // for this signal across all sessions, the chart still renders as a
+    // flat baseline-only line so the card is never empty.
+    const points = [e.baseline, ...realPoints];
+
+    const direction = computeDirection(realPoints, e.baseline, e.higherIsBetter);
     return {
       id: e.id,
       label: e.label,
@@ -216,7 +221,7 @@ export function buildSignalSeriesFromHistory(maxPoints = 14): RealSeriesResult {
       points,
       baseline: e.baseline,
       direction,
-      blurb: buildBlurb(points, e),
+      blurb: buildBlurb(realPoints, e, records.length),
     };
   });
 
@@ -227,15 +232,16 @@ function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// realPoints is just the captured session readings (no baseline prepend).
+// Direction is computed from those vs the canonical baseline.
 function computeDirection(
-  points: number[],
+  realPoints: number[],
   baseline: number,
   higherIsBetter: boolean,
 ): SignalSeries["direction"] {
-  if (points.length === 0) return "stable";
-  const latest = points[points.length - 1];
+  if (realPoints.length === 0) return "stable";
+  const latest = realPoints[realPoints.length - 1];
   const pct = ((latest - baseline) / baseline) * 100;
-  // Treat ≥3% from baseline in the better direction as improving.
   const improvingThreshold = 3;
   const watchThreshold = -3;
   const signed = higherIsBetter ? pct : -pct;
@@ -244,21 +250,28 @@ function computeDirection(
   return "stable";
 }
 
-function buildBlurb(points: number[], e: SignalExtraction): string {
-  if (points.length < 2) {
-    return `${e.blurb} Captured ${points.length} session so far — your baseline is still forming.`;
+function buildBlurb(
+  realPoints: number[],
+  e: SignalExtraction,
+  totalSessions: number,
+): string {
+  if (realPoints.length === 0) {
+    return `${e.blurb} Not captured in the last ${totalSessions} ${
+      totalSessions === 1 ? "session" : "sessions"
+    } — try a session that includes this measure.`;
   }
-  const first = points[0];
-  const last = points[points.length - 1];
-  const pct = ((last - first) / first) * 100;
-  const direction = computeDirection(points, e.baseline, e.higherIsBetter);
+  const latest = realPoints[realPoints.length - 1];
+  const pct = ((latest - e.baseline) / e.baseline) * 100;
+  const direction = computeDirection(realPoints, e.baseline, e.higherIsBetter);
+  const sessionWord = realPoints.length === 1 ? "session" : "sessions";
+  const measured = `Compared against your baseline (${e.baseline} ${e.unit}) over ${realPoints.length} ${sessionWord}.`;
   if (direction === "improving") {
-    return `${e.blurb} Moving in the right direction over your last ${points.length} sessions (${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%).`;
+    return `${e.blurb} ${measured} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% in the right direction.`;
   }
   if (direction === "watch") {
-    return `${e.blurb} Has drifted ${Math.abs(pct).toFixed(1)}% from your baseline — keep an eye on it.`;
+    return `${e.blurb} ${measured} ${Math.abs(pct).toFixed(1)}% from baseline — keep an eye on it.`;
   }
-  return `${e.blurb} Holding within normal day-to-day variation.`;
+  return `${e.blurb} ${measured} Holding within normal day-to-day variation.`;
 }
 
 // Lets components subscribe to live updates after a session lands.
