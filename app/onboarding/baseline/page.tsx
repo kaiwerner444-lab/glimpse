@@ -14,6 +14,11 @@ import {
 import type { TaskResult } from "@/lib/session/types";
 import type { TaskFeatures } from "@/lib/ml/extractor";
 import { saveSessionRecord } from "@/lib/dashboard/session-history";
+import {
+  clearBaselineProgress,
+  loadBaselineProgress,
+  saveBaselineProgress,
+} from "@/lib/session/baseline-progress";
 import { cn } from "@/lib/utils";
 
 type Stage = "intro" | "running" | "done";
@@ -21,14 +26,19 @@ type Stage = "intro" | "running" | "done";
 export default function BaselineStep() {
   const router = useRouter();
   const { state, update } = useOnboardingState();
+  // Hydrate any in-progress baseline once on mount so a resumed session
+  // skips past already-finished tasks and keeps their results.
+  const [resumed] = useState(() => loadBaselineProgress());
   const [stage, setStage] = useState<Stage>(
     state.baseline?.completedAt ? "done" : "intro",
   );
-  const [results, setResults] = useState<TaskResult[]>([]);
+  const [results, setResults] = useState<TaskResult[]>(resumed?.results ?? []);
   const [features, setFeatures] = useState<TaskFeatures[]>([]);
   // Distinguishes "all tasks completed" from "user clicked End session
   // partway through" so the dashboard can prompt them to finish.
   const [fullyCompleted, setFullyCompleted] = useState<boolean>(false);
+  // First-time started timestamp survives across resume cycles.
+  const baselineStartedAt = resumed?.startedAt ?? new Date().toISOString();
 
   const finish = (skipForNow: boolean) => {
     update({
@@ -56,6 +66,18 @@ export default function BaselineStep() {
       >
         <SessionRunner
           tasks={BASELINE_TASKS}
+          skipTaskIds={resumed?.completedTaskIds}
+          initialResults={resumed?.results}
+          onTaskComplete={(taskId, r) => {
+            // Incremental save after every task. If the user closes
+            // the tab between tasks, the home screen will show a
+            // "Resume baseline" card on next load.
+            saveBaselineProgress({
+              completedTaskIds: r.map((x) => x.taskId),
+              results: r,
+              startedAt: baselineStartedAt,
+            });
+          }}
           onComplete={(r, f) => {
             setResults(r);
             setFeatures(f);
@@ -69,9 +91,14 @@ export default function BaselineStep() {
               features: f,
               results: r,
             });
+            // Baseline is complete — drop the in-progress marker so
+            // the resume card disappears.
+            clearBaselineProgress();
             setStage("done");
           }}
           onSkipAll={() => {
+            // User chose to bail out partway. Keep the in-progress
+            // marker so they can resume later from the dashboard.
             setFullyCompleted(false);
             setStage("done");
           }}

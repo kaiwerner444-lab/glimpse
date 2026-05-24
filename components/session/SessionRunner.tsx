@@ -36,6 +36,14 @@ interface SessionRunnerProps {
   tasks: Task[];
   onComplete: (results: TaskResult[], features: TaskFeatures[]) => void;
   onSkipAll?: () => void;
+  // Resume-baseline support. When set, the runner starts at the first
+  // task whose id is NOT in skipTaskIds, and seeds its internal results
+  // with initialResults so already-captured tasks survive the resume.
+  // onTaskComplete fires after each task result is appended so the
+  // caller can persist progress incrementally.
+  skipTaskIds?: string[];
+  initialResults?: TaskResult[];
+  onTaskComplete?: (taskId: string, results: TaskResult[]) => void;
 }
 
 const PHASE_META: Record<Phase, { label: string; icon: React.ReactNode }> = {
@@ -59,6 +67,9 @@ function SessionRunnerInner({
   tasks: rawTasks,
   onComplete,
   onSkipAll,
+  skipTaskIds,
+  initialResults,
+  onTaskComplete,
 }: SessionRunnerProps) {
   const { publishTap, resetSignals } = useSessionSignals();
   const { enabled: comfort } = useComfort();
@@ -86,10 +97,24 @@ function SessionRunnerInner({
       return stretched;
     });
   }, [rawTasks, comfort]);
-  const [index, setIndex] = useState(0);
+  // Resume support: jump past tasks that were already completed in a
+  // prior sitting, and seed results from what was already captured.
+  const skipSet = useMemo(
+    () => new Set(skipTaskIds ?? []),
+    [skipTaskIds],
+  );
+  const initialIndex = useMemo(() => {
+    if (skipSet.size === 0) return 0;
+    const i = tasks.findIndex((t) => !skipSet.has(t.id));
+    return i === -1 ? 0 : i;
+    // tasks is derived from rawTasks; computing once on mount is the
+    // intent — the user can't change comfort mode mid-session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [index, setIndex] = useState(initialIndex);
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [results, setResults] = useState<TaskResult[]>([]);
+  const [results, setResults] = useState<TaskResult[]>(initialResults ?? []);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
 
@@ -252,6 +277,10 @@ function SessionRunnerInner({
       };
       const updated = [...results, next];
       setResults(updated);
+      // Notify parent so it can persist progress between tasks. Fire
+      // BEFORE onComplete so the caller can clear in-progress storage
+      // on the final task without race conditions.
+      onTaskComplete?.(task.id, updated);
       interactionRef.current = {};
       startedAtRef.current = new Date().toISOString();
 
@@ -264,7 +293,7 @@ function SessionRunnerInner({
       setIndex((i) => i + 1);
       setElapsed(0);
     },
-    [task, results, index, totalTasks, onComplete],
+    [task, results, index, totalTasks, onComplete, onTaskComplete],
   );
 
   if (!task) return null;

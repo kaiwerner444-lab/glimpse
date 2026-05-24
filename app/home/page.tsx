@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, FileText, ChevronRight } from "lucide-react";
+import { Users, FileText, ChevronRight, PlayCircle } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { Greeting } from "@/components/dashboard/Greeting";
 import { SignalCard } from "@/components/dashboard/SignalCard";
@@ -25,6 +25,11 @@ import { MobileMenu } from "@/components/dashboard/MobileMenu";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import {
+  loadBaselineProgress,
+  type BaselineProgress,
+} from "@/lib/session/baseline-progress";
+import { BASELINE_TASKS } from "@/lib/session/baseline";
+import {
   buildSignalSeriesFromHistory,
   onSessionSaved,
   type RealSeriesResult,
@@ -44,10 +49,17 @@ export default function Home() {
   const [daysSinceStart, setDaysSinceStart] = useState<number>(0);
   const [game, setGame] = useState<GamificationState>(() => emptyState());
   const [seriesResult, setSeriesResult] = useState<RealSeriesResult | null>(null);
+  const [baselineInProgress, setBaselineInProgress] =
+    useState<BaselineProgress | null>(null);
   useEffect(() => {
     const sync = () => setSeriesResult(buildSignalSeriesFromHistory());
     sync();
     return onSessionSaved(sync);
+  }, []);
+  // Look for an in-progress baseline on mount. If found, surface the
+  // Resume card so the user doesn't have to redo earlier tasks.
+  useEffect(() => {
+    setBaselineInProgress(loadBaselineProgress());
   }, []);
   const series = seriesResult?.series ?? [];
 
@@ -94,6 +106,9 @@ export default function Home() {
       <Header />
 
       <main className="px-4 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto py-6 sm:py-10 flex flex-col gap-8 sm:gap-10">
+        {baselineInProgress ? (
+          <ResumeBaselineCard progress={baselineInProgress} />
+        ) : null}
         <CompleteAssessmentBanner />
         <AlertBanner />
         <Greeting name={name} />
@@ -304,4 +319,47 @@ function QuickLink({
 function capitalize(s: string) {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function ResumeBaselineCard({ progress }: { progress: BaselineProgress }) {
+  const total = BASELINE_TASKS.length;
+  const done = progress.completedTaskIds.length;
+  const minutesAgo = Math.max(
+    0,
+    Math.round((Date.now() - new Date(progress.startedAt).getTime()) / 60000),
+  );
+  const startedCopy =
+    minutesAgo < 1
+      ? "Started just now"
+      : minutesAgo === 1
+        ? "Started 1 minute ago"
+        : minutesAgo < 60
+          ? `Started ${minutesAgo} minutes ago`
+          : minutesAgo < 120
+            ? "Started about an hour ago"
+            : minutesAgo < 60 * 24
+              ? `Started ${Math.round(minutesAgo / 60)} hours ago`
+              : "Started earlier";
+  return (
+    <section className="glimpse-card p-5 sm:p-6 flex items-center gap-4 sm:gap-5 border-brand-500/30 bg-brand-50/60">
+      <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0">
+        <PlayCircle className="h-6 w-6 sm:h-7 sm:w-7" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-base sm:text-lg font-semibold text-ink leading-tight">
+          Resume baseline · {done} of {total} tasks complete
+        </p>
+        <p className="text-sm text-ink-muted mt-1 leading-relaxed">
+          {startedCopy}. Pick up where you left off — your earlier answers are saved.
+        </p>
+      </div>
+      <Link
+        href="/onboarding/baseline"
+        className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 text-sm font-semibold transition"
+      >
+        Continue
+        <ChevronRight className="h-4 w-4" />
+      </Link>
+    </section>
+  );
 }
