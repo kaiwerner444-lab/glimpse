@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { MetaVision } from "@/components/landing/MetaVision";
 import { WhatWeScreenFor } from "@/components/landing/WhatWeScreenFor";
 import { HowItWorks } from "@/components/landing/HowItWorks";
-import { MeshHero } from "@/components/landing/MeshHero";
-import { GlimpseEye } from "@/components/dashboard/GlimpseEye";
+import { AnimatedHero } from "@/components/landing/AnimatedHero";
 import { Reveal } from "@/components/motion/Reveal";
 import { MobileMenu } from "@/components/dashboard/MobileMenu";
 import { loadOnboarding } from "@/lib/db/mock-db";
@@ -68,57 +67,7 @@ export default function Landing() {
       </header>
 
       <main className="flex-1 px-4 sm:px-6 max-w-6xl w-full mx-auto">
-        {/* Hero */}
-        <MeshHero>
-          <section className="px-4 sm:px-8 pt-16 sm:pt-28 pb-20 sm:pb-32 relative">
-            <div className="absolute right-4 top-12 sm:right-12 sm:top-20 opacity-90 pointer-events-none hidden md:block">
-              <GlimpseEye size={220} />
-            </div>
-            <Reveal>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-600 mb-6">
-                Proactive screening · on your terms
-              </p>
-            </Reveal>
-            <Reveal delay={0.05}>
-              <h1 className="glimpse-display text-[2.75rem] sm:text-7xl lg:text-[5.75rem] text-ink max-w-4xl">
-                The earliest signals.{" "}
-                <span className="text-brand-500">Years</span> before a clinic
-                would.
-              </h1>
-            </Reveal>
-            <Reveal delay={0.12}>
-              <p className="mt-7 text-lg sm:text-xl text-ink-muted max-w-2xl leading-relaxed">
-                Five minutes a day, in front of any mirror. Meta Ray Ban glasses,
-                your phone camera, and your genome — together they pick up the
-                small drifts in speech, movement and expression that precede
-                neurological and chronic disease.
-              </p>
-            </Reveal>
-            <Reveal delay={0.18}>
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <Link href={hydrated ? resumeHref : "/onboarding/account"}>
-                  <Button size="lg" className="gap-2 shadow-elevated">
-                    Get started
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/clinician">
-                  <Button variant="secondary" size="lg">
-                    I&apos;m a clinician
-                  </Button>
-                </Link>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.24}>
-              <div className="mt-16 flex items-center gap-6 text-sm text-ink-muted flex-wrap">
-                <Trust>HIPAA-aligned</Trust>
-                <Trust>Runs on-device</Trust>
-                <Trust>Five minutes a day</Trust>
-              </div>
-            </Reveal>
-          </section>
-        </MeshHero>
+        <AnimatedHero resumeHref={hydrated ? resumeHref : "/onboarding/account"} />
 
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-16 pb-16">
           {[
@@ -238,11 +187,3 @@ function FeatureTile({
   );
 }
 
-function Trust({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
-      {children}
-    </span>
-  );
-}
