@@ -21,6 +21,7 @@ import { AiInsights } from "@/components/dashboard/AiInsights";
 import { SensorIntegrations } from "@/components/dashboard/SensorIntegrations";
 import { CompleteAssessmentBanner } from "@/components/dashboard/CompleteAssessmentBanner";
 import { AlertBanner } from "@/components/dashboard/AlertBanner";
+import { MobileMenu } from "@/components/dashboard/MobileMenu";
 import { loadOnboarding } from "@/lib/db/mock-db";
 import { useRequireAuth } from "@/lib/auth/require-auth";
 import {
@@ -256,7 +257,9 @@ function Header() {
       >
         <Logo />
       </Link>
-      <nav className="flex items-center gap-3 text-sm">
+      {/* Desktop nav stays inline. Mobile collapses everything into a
+          hamburger sheet so the header stops feeling crowded on phones. */}
+      <nav className="hidden md:flex items-center gap-3 text-sm">
         <Link
           href="/clinician"
           className="px-3 py-1.5 rounded-lg text-ink-muted hover:text-ink hover:bg-black/[0.04]"
@@ -265,6 +268,7 @@ function Header() {
         </Link>
         <AccountMenu />
       </nav>
+      <MobileMenu variant="dashboard" />
     </header>
   );
 }
