@@ -100,7 +100,7 @@ export async function signIn(
     email,
     password,
   });
-  if (error || !data.session) {
+  if (error || !data.session || !data.user) {
     const msg = error?.message ?? "Sign in failed.";
     const lower = msg.toLowerCase();
     let kind: SignInResult["kind"] = "other";
@@ -109,6 +109,63 @@ export async function signIn(
       kind = "bad_credentials";
     return { ok: false, error: msg, kind };
   }
+
+  // Rehydrate localStorage from the accounts row so useRequireAuth()
+  // recognises this session immediately. Without this, sign-out then
+  // sign-in leaves localStorage empty and /home bounces the user back
+  // to /auth/signin — which looks to the user like "the form just
+  // erased my email and password".
+  const userId = data.user.id;
+  if (typeof window !== "undefined") {
+    let account: Account | null = null;
+    try {
+      const { data: row } = await sb
+        .from("accounts")
+        .select(
+          "id,email,date_of_birth,sex,height_cm,weight_kg,ethnicity_hint,hipaa_consent,gdpr_consent,created_at",
+        )
+        .eq("id", userId)
+        .maybeSingle();
+      if (row) {
+        account = {
+          id: row.id,
+          email: row.email,
+          dateOfBirth: row.date_of_birth,
+          sex: row.sex,
+          heightCm: Number(row.height_cm),
+          weightKg: Number(row.weight_kg),
+          unitSystem: "metric",
+          ethnicityHint: row.ethnicity_hint,
+          hipaaConsent: row.hipaa_consent,
+          gdprConsent: row.gdpr_consent,
+          createdAt: row.created_at,
+        };
+      }
+    } catch {
+      // Network or RLS hiccup — fall through to minimal hydration.
+    }
+    if (!account) {
+      // No accounts row yet (e.g. user signed up but onboarding never
+      // wrote a row, or the row was deleted). Hydrate a minimal record
+      // so the user can re-enter onboarding instead of being bounced
+      // back to the signin page in a loop.
+      account = {
+        id: userId,
+        email,
+        dateOfBirth: "",
+        sex: "prefer_not_to_say",
+        heightCm: 0,
+        weightKg: 0,
+        unitSystem: "metric",
+        ethnicityHint: "unspecified",
+        hipaaConsent: false,
+        gdprConsent: false,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
+  }
+
   return { ok: true };
 }
 
